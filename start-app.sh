@@ -1,5 +1,5 @@
 #!/bin/bash
-# Container startup script for production deployment
+# Container startup script for production deployment CLRF
 set -e
 
 echo "🚀 Starting AI Search System - Production Container"
