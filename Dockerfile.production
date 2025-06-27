@@ -52,15 +52,18 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY app ./app
 COPY scripts ./scripts
 COPY docker/supervisor.conf /etc/supervisor/conf.d/ai-search.conf
-COPY start-app.sh /start-app.sh
-COPY start-app.sh ./start-app.sh
 COPY docker/init-models.sh ./init-models.sh
 
+# Copy start-app.sh to both locations explicitly
+COPY start-app.sh /start-app.sh
+COPY start-app.sh /workspace/start-app.sh
+
 # Fix line endings and permissions for both locations
-RUN sed -i 's/\r$//' /start-app.sh && chmod +x /start-app.sh ./start-app.sh ./init-models.sh
+RUN sed -i 's/\r$//' /start-app.sh /workspace/start-app.sh ./init-models.sh && \
+    chmod +x /start-app.sh /workspace/start-app.sh ./init-models.sh
 
 # Debug: show file details before entrypoint
-RUN ls -l / && ls -l /workspace
+RUN ls -la / | grep start-app && ls -la /workspace | grep start-app
 
 # Copy configuration
 COPY .env.example .env
