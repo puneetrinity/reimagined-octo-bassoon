@@ -1,4 +1,4 @@
-# Production Dockerfile for RunPod A5000 Deployment
+# Production Dockerfile for app A5000 Deployment
 # Simplified version without development dependencies
 FROM nvidia/cuda:12.1.1-runtime-ubuntu22.04
 
@@ -52,14 +52,14 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY app ./app
 COPY scripts ./scripts
 COPY docker/supervisor.conf /etc/supervisor/conf.d/ai-search.conf
-COPY docker/start-runpod.sh ./start-runpod.sh
+COPY docker/start-app.sh ./start-app.sh
 COPY docker/init-models.sh ./init-models.sh
 
 # Copy configuration
 COPY .env.example .env
 
 # Set permissions
-RUN chmod +x ./start-runpod.sh ./init-models.sh
+RUN chmod +x ./start-app.sh ./init-models.sh
 
 # Create directories
 RUN mkdir -p /workspace/logs /workspace/data /workspace/models
@@ -72,5 +72,5 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD curl -f http://localhost:8000/health/live || exit 1
 
 # Start services
-ENTRYPOINT ["./start-runpod.sh"]
+ENTRYPOINT ["./start-app.sh"]
 CMD ["supervisord", "-c", "/etc/supervisor/supervisord.conf", "-n"]
