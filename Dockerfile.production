@@ -55,11 +55,11 @@ COPY docker/supervisor.conf /etc/supervisor/conf.d/ai-search.conf
 COPY start-app.sh ./start-app.sh
 COPY docker/init-models.sh ./init-models.sh
 
+# Fix line endings and set permissions
+RUN sed -i 's/\r$//' ./start-app.sh && chmod +x ./start-app.sh ./init-models.sh
+
 # Copy configuration
 COPY .env.example .env
-
-# Set permissions
-RUN chmod +x ./start-app.sh ./init-models.sh
 
 # Create directories
 RUN mkdir -p /workspace/logs /workspace/data /workspace/models
