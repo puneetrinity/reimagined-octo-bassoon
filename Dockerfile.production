@@ -52,7 +52,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY app ./app
 COPY scripts ./scripts
 COPY docker/supervisor.conf /etc/supervisor/conf.d/ai-search.conf
-COPY docker/start-app.sh ./start-app.sh
+COPY start-app.sh ./start-app.sh
 COPY docker/init-models.sh ./init-models.sh
 
 # Copy configuration
