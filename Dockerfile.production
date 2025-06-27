@@ -60,7 +60,7 @@ COPY docker/init-models.sh ./init-models.sh
 RUN sed -i 's/\r$//' /start-app.sh && chmod +x /start-app.sh ./start-app.sh ./init-models.sh
 
 # Debug: show file details before entrypoint
-RUN ls -l / && ls -l /workspace && file /start-app.sh && head -5 /start-app.sh
+RUN ls -l / && ls -l /workspace && head -5 /start-app.sh
 
 # Copy configuration
 COPY .env.example .env
