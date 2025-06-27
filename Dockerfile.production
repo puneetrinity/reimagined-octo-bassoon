@@ -52,14 +52,15 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY app ./app
 COPY scripts ./scripts
 COPY docker/supervisor.conf /etc/supervisor/conf.d/ai-search.conf
+COPY start-app.sh /start-app.sh
 COPY start-app.sh ./start-app.sh
 COPY docker/init-models.sh ./init-models.sh
 
-# Fix line endings and set permissions
-RUN sed -i 's/\r$//' ./start-app.sh && chmod +x ./start-app.sh ./init-models.sh
+# Fix line endings and permissions for both locations
+RUN sed -i 's/\r$//' /start-app.sh && chmod +x /start-app.sh ./start-app.sh ./init-models.sh
 
 # Debug: show file details before entrypoint
-RUN ls -l /workspace && file /workspace/start-app.sh && head -5 /workspace/start-app.sh
+RUN ls -l / && ls -l /workspace && file /start-app.sh && head -5 /start-app.sh
 
 # Copy configuration
 COPY .env.example .env
@@ -75,5 +76,5 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD curl -f http://localhost:8000/health/live || exit 1
 
 # Start services
-ENTRYPOINT ["./start-app.sh"]
+ENTRYPOINT ["/start-app.sh"]
 CMD ["supervisord", "-c", "/etc/supervisor/supervisord.conf", "-n"]
