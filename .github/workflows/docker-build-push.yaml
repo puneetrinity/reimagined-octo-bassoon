@@ -83,8 +83,8 @@ jobs:
       if: github.event_name != 'pull_request'
       run: |
         echo "🧪 Testing built image..."
-        docker run --rm ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest python --version
-        docker run --rm ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest ls -la /workspace/app
+        docker run --rm ${{ env.REGISTRY }}/puneetrinity/${{ env.IMAGE_NAME }}:latest python --version
+        docker run --rm ${{ env.REGISTRY }}/puneetrinity/${{ env.IMAGE_NAME }}:latest ls -la /workspace/app
         echo "✅ Image test completed"
         
     - name: Generate deployment info
@@ -94,19 +94,19 @@ jobs:
         echo "========================" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "**DockerHub Images Built:**" >> $GITHUB_STEP_SUMMARY
-        echo "- \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest\` (App-only, fast deploy)" >> $GITHUB_STEP_SUMMARY
-        echo "- \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:gpu\` (GPU-optimized)" >> $GITHUB_STEP_SUMMARY
-        echo "- \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:runpod\` (RunPod ready)" >> $GITHUB_STEP_SUMMARY
+        echo "- \`${{ env.REGISTRY }}/puneetrinity/${{ env.IMAGE_NAME }}:latest\` (App-only, fast deploy)" >> $GITHUB_STEP_SUMMARY
+        echo "- \`${{ env.REGISTRY }}/puneetrinity/${{ env.IMAGE_NAME }}:gpu\` (GPU-optimized)" >> $GITHUB_STEP_SUMMARY
+        echo "- \`${{ env.REGISTRY }}/puneetrinity/${{ env.IMAGE_NAME }}:runpod\` (RunPod ready)" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "**RunPod Deployment Commands:**" >> $GITHUB_STEP_SUMMARY
         echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
         echo "# Quick deployment (recommended)" >> $GITHUB_STEP_SUMMARY
         echo "docker run -d --gpus all -p 8000:8000 --name ai-search \\" >> $GITHUB_STEP_SUMMARY
-        echo "  ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest" >> $GITHUB_STEP_SUMMARY
+        echo "  ${{ env.REGISTRY }}/puneetrinity/${{ env.IMAGE_NAME }}:latest" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "# GPU-optimized deployment" >> $GITHUB_STEP_SUMMARY
         echo "docker run -d --gpus all -p 8000:8000 --name ai-search \\" >> $GITHUB_STEP_SUMMARY
-        echo "  ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:runpod" >> $GITHUB_STEP_SUMMARY
+        echo "  ${{ env.REGISTRY }}/puneetrinity/${{ env.IMAGE_NAME }}:runpod" >> $GITHUB_STEP_SUMMARY
         echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "**Access Points:**" >> $GITHUB_STEP_SUMMARY
