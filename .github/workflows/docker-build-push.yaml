@@ -83,8 +83,9 @@ jobs:
       if: github.event_name != 'pull_request'
       run: |
         echo "🧪 Testing built image..."
-        docker run --rm ${{ env.REGISTRY }}/puneetrinity/${{ env.IMAGE_NAME }}:latest python --version
-        docker run --rm ${{ env.REGISTRY }}/puneetrinity/${{ env.IMAGE_NAME }}:latest ls -la /workspace/app
+        docker run --rm --entrypoint="" ${{ env.REGISTRY }}/puneetrinity/${{ env.IMAGE_NAME }}:latest python --version
+        docker run --rm --entrypoint="" ${{ env.REGISTRY }}/puneetrinity/${{ env.IMAGE_NAME }}:latest ls -la /workspace/app
+        docker run --rm --entrypoint="" ${{ env.REGISTRY }}/puneetrinity/${{ env.IMAGE_NAME }}:latest ls -la /start-app.sh
         echo "✅ Image test completed"
         
     - name: Generate deployment info
