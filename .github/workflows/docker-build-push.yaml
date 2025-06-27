@@ -21,7 +21,7 @@ on:
 
 env:
   REGISTRY: docker.io
-  IMAGE_NAME: advancellmsearch/ai-search-system
+  IMAGE_NAME: advancellmsearch
 
 jobs:
   build-and-push:
