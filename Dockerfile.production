@@ -63,7 +63,11 @@ RUN sed -i 's/\r$//' /start-app.sh /workspace/start-app.sh ./init-models.sh && \
     chmod +x /start-app.sh /workspace/start-app.sh ./init-models.sh
 
 # Debug: show file details before entrypoint
-RUN ls -la / | grep start-app && ls -la /workspace | grep start-app
+RUN echo "=== ROOT DIRECTORY ===" && ls -la / | grep start-app || echo "No start-app in root" && \
+    echo "=== WORKSPACE DIRECTORY ===" && ls -la /workspace | grep start-app || echo "No start-app in workspace" && \
+    echo "=== CHECKING FILE EXISTENCE ===" && \
+    test -f /start-app.sh && echo "/start-app.sh exists" || echo "/start-app.sh missing" && \
+    test -f /workspace/start-app.sh && echo "/workspace/start-app.sh exists" || echo "/workspace/start-app.sh missing"
 
 # Copy configuration
 COPY .env.example .env
