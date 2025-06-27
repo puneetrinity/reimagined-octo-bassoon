@@ -21,7 +21,7 @@ on:
 
 env:
   REGISTRY: docker.io
-  IMAGE_NAME: puneetrinity/ubiquitous-octo-invention
+  IMAGE_NAME: puneetrinity/ubiquitous-octo-invention:main
 
 jobs:
   build-and-push:
