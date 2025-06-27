@@ -1,0 +1,76 @@
+# Production Dockerfile for RunPod A5000 Deployment
+# Simplified version without development dependencies
+FROM nvidia/cuda:12.1.1-runtime-ubuntu22.04
+
+# Prevent interactive prompts
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    CUDA_VISIBLE_DEVICES=0 \
+    NVIDIA_VISIBLE_DEVICES=all \
+    NVIDIA_DRIVER_CAPABILITIES=compute,utility
+
+# Set working directory
+WORKDIR /workspace
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    software-properties-common \
+    curl \
+    wget \
+    git \
+    build-essential \
+    gcc \
+    g++ \
+    python3.10 \
+    python3.10-dev \
+    python3-pip \
+    python3.10-venv \
+    redis-server \
+    supervisor \
+    && add-apt-repository ppa:deadsnakes/ppa \
+    && apt-get update \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create symbolic links for python
+RUN ln -sf /usr/bin/python3.10 /usr/bin/python3 && \
+    ln -sf /usr/bin/python3.10 /usr/bin/python
+
+# Upgrade pip
+RUN python3 -m pip install --upgrade pip setuptools wheel
+
+# Install Ollama
+RUN curl -fsSL https://ollama.ai/install.sh | sh
+
+# Copy and install Python dependencies
+COPY requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy application code
+COPY app ./app
+COPY scripts ./scripts
+COPY docker/supervisor.conf /etc/supervisor/conf.d/ai-search.conf
+COPY docker/start-runpod.sh ./start-runpod.sh
+COPY docker/init-models.sh ./init-models.sh
+
+# Copy configuration
+COPY .env.example .env
+
+# Set permissions
+RUN chmod +x ./start-runpod.sh ./init-models.sh
+
+# Create directories
+RUN mkdir -p /workspace/logs /workspace/data /workspace/models
+
+# Expose ports
+EXPOSE 8000 11434 6379 22
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:8000/health/live || exit 1
+
+# Start services
+ENTRYPOINT ["./start-runpod.sh"]
+CMD ["supervisord", "-c", "/etc/supervisor/supervisord.conf", "-n"]
