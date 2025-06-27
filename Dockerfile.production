@@ -58,6 +58,9 @@ COPY docker/init-models.sh ./init-models.sh
 # Fix line endings and set permissions
 RUN sed -i 's/\r$//' ./start-app.sh && chmod +x ./start-app.sh ./init-models.sh
 
+# Debug: show file details before entrypoint
+RUN ls -l /workspace && file /workspace/start-app.sh && head -5 /workspace/start-app.sh
+
 # Copy configuration
 COPY .env.example .env
 
