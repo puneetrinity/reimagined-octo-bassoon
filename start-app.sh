@@ -24,7 +24,7 @@ echo "  - API: $API_HOST:$API_PORT"
 # Initialize models in background if not already done
 if [ ! -f "/workspace/models/.initialized" ]; then
     echo "Initializing models in background..."
-    /workspace/init-models.sh &
+    /app/init-models.sh &
 fi
 
 # Start supervisor or the provided command

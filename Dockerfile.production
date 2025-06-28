@@ -48,22 +48,27 @@ RUN curl -fsSL https://ollama.ai/install.sh | sh
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code
-COPY app ./app
-COPY scripts ./scripts
+# Copy application code to /app (not /workspace to avoid volume overwrites)
+COPY app /app
+COPY scripts /app/scripts
 COPY docker/supervisor.conf /etc/supervisor/conf.d/ai-search.conf
-COPY docker/init-models.sh /workspace/init-models.sh
+COPY docker/init-models.sh /app/init-models.sh
 
 # Copy start-app.sh to both locations explicitly
 COPY start-app.sh /start-app.sh
-COPY start-app.sh /workspace/start-app.sh
+COPY start-app.sh /app/start-app.sh
 
 # Fix line endings and permissions for both locations
-RUN sed -i 's/\r$//' /start-app.sh /workspace/start-app.sh /workspace/init-models.sh && \
-    chmod +x /start-app.sh /workspace/start-app.sh /workspace/init-models.sh
+RUN sed -i 's/\r$//' /start-app.sh /app/start-app.sh /app/init-models.sh && \
+    chmod +x /start-app.sh /app/start-app.sh /app/init-models.sh
+
+# Create symlinks in workspace pointing to /app
+RUN ln -sf /app /workspace/app && \
+    ln -sf /app/init-models.sh /workspace/init-models.sh && \
+    ln -sf /app/start-app.sh /workspace/start-app.sh
 
 # Debug: verify all files are in place
-RUN ls -la /start-app.sh /workspace/start-app.sh /workspace/init-models.sh
+RUN ls -la /start-app.sh /app/start-app.sh /app/init-models.sh /app/main.py
 
 # Copy configuration
 COPY .env.example .env
