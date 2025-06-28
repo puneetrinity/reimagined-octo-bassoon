@@ -420,6 +420,7 @@ async def chat_stream(
     await initialize_chat_dependencies()
 
     async def generate_safe_stream():
+        global chat_graph, model_manager, cache_manager
         
         # Get user message first for caching and routing
         user_message = ""
@@ -521,7 +522,6 @@ async def chat_stream(
                 },
             )
             # Ensure we have initialized dependencies
-            global chat_graph, model_manager, cache_manager
             if chat_graph is None:
                 if model_manager is None:
                     from app.dependencies import get_model_manager

@@ -1,7 +1,7 @@
 import os
 import requests
 
-ollama_host = os.getenv("OLLAMA_HOST", "http://ollama:11434")
+ollama_host = os.getenv("OLLAMA_HOST", "http://localhost:11434")
 health_url = f"{ollama_host}/api/health"
 
 try:

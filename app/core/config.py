@@ -33,14 +33,14 @@ class Settings(BaseSettings):
 
     # Ollama Configuration
     ollama_host: str = Field(
-        default_factory=lambda: os.getenv("OLLAMA_HOST", "http://ollama:11434")
+        default_factory=lambda: os.getenv("OLLAMA_HOST", "http://localhost:11434")
     )
     ollama_timeout: int = 60
     ollama_max_retries: int = 3
 
     # Redis Configuration
     redis_url: str = Field(
-        default_factory=lambda: os.getenv("REDIS_URL", "redis://redis:6379")
+        default_factory=lambda: os.getenv("REDIS_URL", "redis://localhost:6379")
     )
     redis_max_connections: int = 20
     redis_timeout: int = 5
