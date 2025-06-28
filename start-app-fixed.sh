@@ -14,7 +14,6 @@ export OLLAMA_HOST="${OLLAMA_HOST:-http://localhost:11434}"
 export ENVIRONMENT="${ENVIRONMENT:-production}"
 export API_HOST="${API_HOST:-0.0.0.0}"
 export API_PORT="${API_PORT:-8000}"
-export PYTHONPATH="/"
 
 echo "Environment configured:"
 echo "  - Redis: $REDIS_URL"
@@ -25,7 +24,7 @@ echo "  - API: $API_HOST:$API_PORT"
 # Initialize models in background if not already done
 if [ ! -f "/workspace/models/.initialized" ]; then
     echo "Initializing models in background..."
-    /app/init-models.sh &
+    ./init-models.sh &
 fi
 
 # Start supervisor or the provided command
