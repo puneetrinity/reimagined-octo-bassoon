@@ -31,6 +31,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-pip \
     python3.10-venv \
     redis-server \
+    supervisor \
     jq \
     netcat \
     && add-apt-repository ppa:deadsnakes/ppa \
@@ -41,9 +42,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN ln -sf /usr/bin/python3.10 /usr/bin/python3 && \
     ln -sf /usr/bin/python3.10 /usr/bin/python
 
-# Upgrade pip and install supervisor from pip to get newer version
-RUN python3 -m pip install --upgrade pip "setuptools>=69.0.0" wheel && \
-    pip install supervisor==4.2.5
+# Upgrade pip 
+RUN python3 -m pip install --upgrade pip setuptools wheel
 
 # Install Ollama
 RUN curl -fsSL https://ollama.ai/install.sh | sh
@@ -64,17 +64,18 @@ COPY start-app.sh /start-app.sh
 COPY start-app.sh /app/start-app.sh
 
 # Fix line endings and permissions for both locations
-RUN sed -i 's/\r$//' /start-app.sh /app/start-app.sh /app/init-models.sh /app/scripts/health-check.sh && \
-    chmod +x /start-app.sh /app/start-app.sh /app/init-models.sh /app/scripts/health-check.sh
+RUN sed -i 's/\r$//' /start-app.sh /app/start-app.sh /app/init-models.sh /app/scripts/health-check.sh /app/scripts/supervisord-wrapper.sh && \
+    chmod +x /start-app.sh /app/start-app.sh /app/init-models.sh /app/scripts/health-check.sh /app/scripts/supervisord-wrapper.sh
 
 # Create symlinks in workspace pointing to /app
 RUN ln -sf /app /workspace/app && \
     ln -sf /app/init-models.sh /workspace/init-models.sh && \
     ln -sf /app/start-app.sh /workspace/start-app.sh && \
-    ln -sf /app/scripts/health-check.sh /workspace/health-check.sh
+    ln -sf /app/scripts/health-check.sh /workspace/health-check.sh && \
+    ln -sf /app/scripts/supervisord-wrapper.sh /workspace/supervisord-wrapper.sh
 
 # Debug: verify all files are in place
-RUN ls -la /start-app.sh /app/start-app.sh /app/init-models.sh /app/main.py /app/scripts/health-check.sh
+RUN ls -la /start-app.sh /app/start-app.sh /app/init-models.sh /app/main.py /app/scripts/health-check.sh /app/scripts/supervisord-wrapper.sh
 
 # Copy configuration
 COPY .env.example .env
@@ -93,4 +94,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
 
 # Start services
 ENTRYPOINT ["/start-app.sh"]
-CMD ["supervisord", "-c", "/etc/supervisor/supervisord.conf", "-n"]
+CMD ["/app/scripts/supervisord-wrapper.sh", "-c", "/etc/supervisor/supervisord.conf", "-n"]

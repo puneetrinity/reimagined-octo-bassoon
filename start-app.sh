@@ -18,6 +18,7 @@ export API_PORT="${API_PORT:-8000}"
 export PYTHONPATH="/"
 export OLLAMA_MODELS="/root/.ollama/models"
 export CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES:-0}"
+export PYTHONWARNINGS="ignore::DeprecationWarning,ignore::UserWarning"
 
 echo "Environment configured:"
 echo "  - Redis: $REDIS_URL"
