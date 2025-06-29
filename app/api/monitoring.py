@@ -4,6 +4,7 @@ Exposes real-time system metrics, cost tracking, and performance data
 """
 
 from typing import Dict, Optional
+import time
 from fastapi import APIRouter, Depends, HTTPException, Query
 import structlog
 
@@ -129,7 +130,7 @@ async def get_production_health() -> Dict:
     try:
         health_status = {
             "overall_status": "healthy",
-            "timestamp": logger.bind().timestamp,
+            "timestamp": time.time(),
             "components": {}
         }
         
@@ -229,7 +230,7 @@ async def get_production_health() -> Dict:
         return {
             "overall_status": "critical",
             "error": str(e),
-            "timestamp": logger.bind().timestamp
+            "timestamp": time.time()
         }
 
 
@@ -238,7 +239,7 @@ async def get_dashboard_summary() -> Dict:
     """Get summary data for monitoring dashboard"""
     try:
         summary = {
-            "timestamp": logger.bind().timestamp,
+            "timestamp": time.time(),
             "system": {},
             "cost": {},
             "performance": {},

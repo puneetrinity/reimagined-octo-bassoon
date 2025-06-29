@@ -4,6 +4,7 @@ Week 1 MVP endpoints for monitoring and controlling adaptive system
 """
 
 from typing import Dict, Optional
+import time
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException
@@ -112,7 +113,7 @@ async def get_adaptive_status(
             "status": "healthy",
             "adaptive_enabled": adaptive_router.enable_adaptive,
             "stats": stats,
-            "timestamp": logger.bind().timestamp
+            "timestamp": time.time()
         }
         
     except Exception as e:
@@ -282,7 +283,7 @@ async def emergency_disable_adaptive(
         return {
             "status": "disabled",
             "message": "Adaptive routing disabled - using production router only",
-            "timestamp": logger.bind().timestamp
+            "timestamp": time.time()
         }
         
     except Exception as e:

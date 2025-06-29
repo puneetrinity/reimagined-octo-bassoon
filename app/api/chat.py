@@ -41,10 +41,11 @@ from app.schemas.responses import (
     ResponseMetadata,
     create_error_response,
 )
+from app.core.config import get_settings
 
 router = APIRouter()
 logger = get_logger("api.chat")
-settings = None  # Fix: define or remove get_settings
+settings = get_settings()
 
 
 # Global instances (will be initialized in main.py)
