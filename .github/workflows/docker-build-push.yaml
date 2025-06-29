@@ -62,8 +62,7 @@ jobs:
         push: ${{ github.event_name != 'pull_request' }}
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
+        no-cache: true
         
     - name: Build and push GPU-optimized image
       uses: docker/build-push-action@v5
@@ -76,8 +75,7 @@ jobs:
           ${{ env.REGISTRY }}/puneetrinity/${{ env.IMAGE_NAME }}:gpu
           ${{ env.REGISTRY }}/puneetrinity/${{ env.IMAGE_NAME }}:runpod
         labels: ${{ steps.meta.outputs.labels }}
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
+        no-cache: true
         
     - name: Test image
       if: github.event_name != 'pull_request'
