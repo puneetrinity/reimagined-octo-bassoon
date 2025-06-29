@@ -379,7 +379,7 @@ class SecurityMiddleware(BaseHTTPMiddleware):
             headers["Retry-After"] = str(retry_after)
 
         return JSONResponse(
-            status_code=status_code, content=error_response.dict(), headers=headers
+            status_code=status_code, content=error_response.model_dump(), headers=headers
         )
 
 

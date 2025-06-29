@@ -78,7 +78,7 @@ class SmartCache:
             # Calculate approximate size
             try:
                 size_bytes = len(json.dumps(value, default=str).encode())
-            except:
+            except (TypeError, ValueError, OverflowError) as e:
                 size_bytes = 1000  # Estimate
 
             entry = CacheEntry(

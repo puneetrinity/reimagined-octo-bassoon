@@ -99,7 +99,7 @@ async def chat_complete(
 ):
     # --- Begin: Accept both flat and wrapped payloads ---
     if hasattr(chat_request, 'dict'):
-        data = chat_request.dict()
+        data = chat_request.model_dump()
     else:
         data = dict(chat_request)
     # Unwrap if wrapped in 'request' key
@@ -490,7 +490,7 @@ async def chat_complete(
                     "Reduce complexity if query is very long",
                     "Try again in a moment",
                 ],
-            ).dict(),
+            ).model_dump(),
         )
 
 

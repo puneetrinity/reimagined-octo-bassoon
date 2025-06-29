@@ -1742,7 +1742,7 @@ class MultiAgentOrchestrator:
         results = await self.execute_tasks(tasks, state)
         # Aggregate results
         aggregated = {
-            "results": {tid: res.dict() for tid, res in results.items()},
+            "results": {tid: res.model_dump() for tid, res in results.items()},
             "success": all(res.success for res in results.values()),
             "errors": [res.error for res in results.values() if not res.success],
         }

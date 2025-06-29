@@ -652,7 +652,7 @@ async def global_exception_handler(request: Request, exc: Exception):
         else None,
     )
 
-    return JSONResponse(status_code=500, content=error_response.dict())
+    return JSONResponse(status_code=500, content=error_response.model_dump())
 
 
 # Rate limit exceeded handler
@@ -698,7 +698,7 @@ async def http_exception_handler(request: Request, exc: HTTPException):
             correlation_id=correlation_id,
         )
 
-        return JSONResponse(status_code=exc.status_code, content=error_response.dict())
+        return JSONResponse(status_code=exc.status_code, content=error_response.model_dump())
 
 
 # Include API routers

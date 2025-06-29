@@ -262,7 +262,7 @@ async def advanced_search(
                 query_id=query_id,
                 correlation_id=correlation_id,
                 technical_details=str(e),
-            ).dict(),
+            ).model_dump(),
         )
 
 
