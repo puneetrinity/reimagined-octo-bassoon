@@ -251,8 +251,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Add security middleware
-app.add_middleware(SecurityMiddleware, enable_rate_limiting=True)
+# Add security middleware (rate limiting disabled for deployment)
+app.add_middleware(SecurityMiddleware, enable_rate_limiting=False)
 
 # Add logging middleware
 app.add_middleware(LoggingMiddleware)

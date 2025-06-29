@@ -533,9 +533,9 @@ def require_permission(permission: str):
                 if not current_user.has_permission(permission):
                     logger.warning(
                         "Permission denied",
-                        user_id=current_user.user_id,
+                        user_id=getattr(current_user, 'user_id', 'unknown'),
                         required_permission=permission,
-                        user_permissions=current_user.permissions,
+                        user_permissions=getattr(current_user, 'permissions', []),
                         correlation_id=get_correlation_id(),
                     )
                     raise HTTPException(
