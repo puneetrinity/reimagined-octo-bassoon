@@ -14,7 +14,7 @@ import structlog
 from app.evaluation.response_evaluator import EvaluationSuite, EvaluationDimension
 from app.evaluation.adaptive_evaluator import RoutingPerformanceAnalyzer, EvaluationDrivenAdaptiveRouter
 from app.schemas.responses import create_success_response, create_error_response
-from app.core.security import get_current_user_optional
+# Authentication temporarily disabled for deployment
 
 router = APIRouter(prefix="/api/v1/evaluation", tags=["Evaluation"])
 logger = structlog.get_logger(__name__)
@@ -49,7 +49,6 @@ routing_analyzer = RoutingPerformanceAnalyzer()
 @router.post("/response/evaluate")
 async def evaluate_response(
     request: EvaluationRequest,
-    current_user: Optional[Dict] = Depends(get_current_user_optional)
 ) -> JSONResponse:
     """
     Evaluate the quality of an AI response across multiple dimensions
@@ -121,7 +120,6 @@ async def evaluate_response(
 @router.post("/response/batch-evaluate")
 async def batch_evaluate_responses(
     request: BatchEvaluationRequest,
-    current_user: Optional[Dict] = Depends(get_current_user_optional)
 ) -> JSONResponse:
     """
     Evaluate multiple query-response interactions in batch
@@ -225,7 +223,6 @@ async def batch_evaluate_responses(
 @router.post("/routing/evaluate")
 async def evaluate_routing_decision(
     request: RoutingEvaluationRequest,
-    current_user: Optional[Dict] = Depends(get_current_user_optional)
 ) -> JSONResponse:
     """
     Evaluate a specific routing decision
@@ -300,7 +297,6 @@ async def evaluate_routing_decision(
 async def get_routing_performance_analysis(
     hours: int = Query(24, ge=1, le=168, description="Time window in hours"),
     routing_arm: Optional[str] = Query(None, description="Specific routing arm to analyze"),
-    current_user: Optional[Dict] = Depends(get_current_user_optional)
 ) -> JSONResponse:
     """
     Get comprehensive routing performance analysis
@@ -380,7 +376,6 @@ async def get_routing_performance_analysis(
 async def get_quality_trends(
     days: int = Query(7, ge=1, le=30, description="Number of days to analyze"),
     routing_arm: Optional[str] = Query(None, description="Filter by routing arm"),
-    current_user: Optional[Dict] = Depends(get_current_user_optional)
 ) -> JSONResponse:
     """
     Get quality trends over time

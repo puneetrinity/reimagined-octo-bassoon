@@ -12,7 +12,6 @@ import structlog
 
 from app.storage.clickhouse_client import get_clickhouse_manager
 from app.schemas.responses import create_success_response, create_error_response
-from app.core.security import get_current_user_optional
 
 router = APIRouter(prefix="/api/v1/analytics", tags=["Analytics"])
 logger = structlog.get_logger(__name__)
@@ -23,7 +22,6 @@ async def get_cost_breakdown(
     days: int = Query(30, ge=1, le=365, description="Number of days to analyze"),
     user_id: Optional[str] = Query(None, description="Filter by specific user ID"),
     category: Optional[str] = Query(None, description="Filter by cost category"),
-    current_user: Optional[Dict] = Depends(get_current_user_optional)
 ) -> JSONResponse:
     """
     Get detailed cost breakdown and analytics from ClickHouse
@@ -92,7 +90,6 @@ async def get_cost_breakdown(
 @router.get("/performance/trends")
 async def get_performance_trends(
     days: int = Query(7, ge=1, le=90, description="Number of days to analyze"),
-    current_user: Optional[Dict] = Depends(get_current_user_optional)
 ) -> JSONResponse:
     """
     Get system performance trends from ClickHouse
@@ -162,7 +159,6 @@ async def get_performance_trends(
 @router.get("/system/resource-usage")
 async def get_system_resource_usage(
     hours: int = Query(24, ge=1, le=168, description="Number of hours to analyze"),
-    current_user: Optional[Dict] = Depends(get_current_user_optional)
 ) -> JSONResponse:
     """
     Get detailed system resource usage trends
@@ -248,7 +244,6 @@ async def get_system_resource_usage(
 async def get_adaptive_routing_performance(
     days: int = Query(7, ge=1, le=30, description="Number of days to analyze"),
     routing_arm: Optional[str] = Query(None, description="Filter by specific routing arm"),
-    current_user: Optional[Dict] = Depends(get_current_user_optional)
 ) -> JSONResponse:
     """
     Get detailed adaptive routing performance analytics
@@ -351,7 +346,6 @@ async def get_adaptive_routing_performance(
 
 @router.get("/dashboard/summary")
 async def get_analytics_dashboard_summary(
-    current_user: Optional[Dict] = Depends(get_current_user_optional)
 ) -> JSONResponse:
     """
     Get comprehensive analytics dashboard summary
