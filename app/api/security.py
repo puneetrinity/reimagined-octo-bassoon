@@ -460,6 +460,11 @@ class AuthenticationStub:
 
     def authenticate_token(self, token: str) -> Optional[Dict[str, Any]]:
         """Authenticate bearer token (stub implementation)."""
+        # Check API key manager first
+        api_user = api_key_manager.validate_api_key(token)
+        if api_user:
+            return api_user
+        
         # Simple token validation for development
         if token.startswith("dev-"):
             user_key = token.replace("dev-", "").replace("-token", "")
@@ -785,7 +790,24 @@ class APIKeyManager:
 
     def load_keys_from_env(self):
         admin_key = os.getenv("ADMIN_API_KEY")
+        ai_api_key = os.getenv("AI_API_KEY")
         user_keys = os.getenv("API_KEYS", "").split(",")
+        
+        # Add the AI_API_KEY from environment
+        if ai_api_key:
+            self.api_keys[ai_api_key] = {
+                "user_id": "ai_user_001",
+                "name": "AI API Key",
+                "tier": "enterprise",
+                "monthly_budget": 1000.0,
+                "current_budget": 1000.0,
+                "rate_limit_per_hour": -1,
+                "permissions": ["chat", "search", "research", "analytics", "advanced_search"],
+                "created_at": "2025-01-01",
+                "last_used": None,
+                "status": "active",
+            }
+        
         if admin_key:
             self.api_keys[admin_key] = {
                 "user_id": "admin_user",
