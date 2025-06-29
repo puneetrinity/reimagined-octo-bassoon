@@ -1,5 +1,6 @@
-# Simple RunPod Dockerfile for AI Search System
-FROM nvidia/cuda:12.1.1-runtime-ubuntu22.04
+# Universal RunPod Dockerfile for AI Search System
+# Works with or without GPU support
+FROM ubuntu:22.04
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \

@@ -68,12 +68,26 @@ jobs:
       uses: docker/build-push-action@v5
       with:
         context: .
-        file: ./Dockerfile.runpod-simple
+        file: ./Dockerfile.runpod-universal
         platforms: linux/amd64
         push: ${{ github.event_name != 'pull_request' }}
         tags: |
           ${{ env.REGISTRY }}/puneetrinity/${{ env.IMAGE_NAME }}:runpod
-          ${{ env.REGISTRY }}/puneetrinity/${{ env.IMAGE_NAME }}:simple
+          ${{ env.REGISTRY }}/puneetrinity/${{ env.IMAGE_NAME }}:universal
+        labels: ${{ steps.meta.outputs.labels }}
+        no-cache: true
+        
+    - name: Build and push CUDA-optimized image (with fallback)
+      uses: docker/build-push-action@v5
+      continue-on-error: true
+      with:
+        context: .
+        file: ./Dockerfile.runpod-simple
+        platforms: linux/amd64
+        push: ${{ github.event_name != 'pull_request' }}
+        tags: |
+          ${{ env.REGISTRY }}/puneetrinity/${{ env.IMAGE_NAME }}:cuda
+          ${{ env.REGISTRY }}/puneetrinity/${{ env.IMAGE_NAME }}:gpu
         labels: ${{ steps.meta.outputs.labels }}
         no-cache: true
         
@@ -94,8 +108,9 @@ jobs:
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "**DockerHub Images Built:**" >> $GITHUB_STEP_SUMMARY
         echo "- \`${{ env.REGISTRY }}/puneetrinity/${{ env.IMAGE_NAME }}:latest\` (Production build)" >> $GITHUB_STEP_SUMMARY
-        echo "- \`${{ env.REGISTRY }}/puneetrinity/${{ env.IMAGE_NAME }}:runpod\` (RunPod optimized)" >> $GITHUB_STEP_SUMMARY
-        echo "- \`${{ env.REGISTRY }}/puneetrinity/${{ env.IMAGE_NAME }}:simple\` (Simplified build)" >> $GITHUB_STEP_SUMMARY
+        echo "- \`${{ env.REGISTRY }}/puneetrinity/${{ env.IMAGE_NAME }}:runpod\` (RunPod universal - **Recommended**)" >> $GITHUB_STEP_SUMMARY
+        echo "- \`${{ env.REGISTRY }}/puneetrinity/${{ env.IMAGE_NAME }}:universal\` (Cross-platform)" >> $GITHUB_STEP_SUMMARY
+        echo "- \`${{ env.REGISTRY }}/puneetrinity/${{ env.IMAGE_NAME }}:cuda\` (CUDA optimized)" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "**RunPod Deployment Commands:**" >> $GITHUB_STEP_SUMMARY
         echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
