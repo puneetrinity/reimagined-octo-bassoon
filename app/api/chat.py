@@ -211,30 +211,123 @@ async def chat_complete(
                 error_code="CHAT_GRAPH_NOT_INITIALIZED",
                 correlation_id=correlation_id,
             )
+        # DEBUG: Log before graph execution
+        logger.info(f"DEBUG: About to execute graph with state: query={graph_state.original_query}")
+        logger.info(f"DEBUG: ChatGraph instance: {chat_graph_instance}")
+        logger.info(f"DEBUG: Model manager: {model_manager}")
+        
         chat_result = await safe_graph_execute(
             chat_graph_instance, graph_state, timeout=chat_request.max_execution_time
         )
         chat_result = await ensure_awaited(chat_result)
-        # Handle GraphState object result - FIXED for GraphState compatibility
-        final_response = None
-        if hasattr(chat_result, 'final_response'):
-            final_response = chat_result.final_response
-            logger.debug(f"Extracted final_response from GraphState: {final_response}")
-        elif isinstance(chat_result, dict):
-            final_response = chat_result.get('final_response') or chat_result.get('response')
-            logger.debug(f"Dict result, extracted: {final_response}")
-        else:
-            logger.error(f"Unexpected result type: {type(chat_result)}")
         
-        if not final_response or not isinstance(final_response, str) or not final_response.strip():
-            logger.error(f"Model returned empty or invalid response: {final_response}")
-            raise HTTPException(status_code=500, detail={
-                "error": "Model returned an empty or invalid response. This may be due to model initialization issues.",
+        # DEBUG: Log the raw result
+        logger.info(f"DEBUG: Raw chat_result type: {type(chat_result)}")
+        logger.info(f"DEBUG: Raw chat_result: {chat_result}")
+        if hasattr(chat_result, '__dict__'):
+            logger.info(f"DEBUG: chat_result attributes: {chat_result.__dict__}")
+        
+        # COMPREHENSIVE FIX: Handle all possible response formats from GraphState
+        final_response = None
+        response_source = "unknown"
+        
+        # Method 1: Check if result has final_response attribute
+        if hasattr(chat_result, 'final_response') and chat_result.final_response:
+            final_response = chat_result.final_response
+            response_source = "direct_attribute"
+            logger.info(f"DEBUG: Method 1 - Extracted from direct attribute: '{final_response}' (type: {type(final_response)})")
+        
+        # Method 2: If it's a dict, check for known response keys
+        elif isinstance(chat_result, dict):
+            for key in ['final_response', 'response', 'text', 'content', 'answer']:
+                if key in chat_result and chat_result[key]:
+                    final_response = chat_result[key]
+                    response_source = f"dict_key_{key}"
+                    logger.info(f"DEBUG: Method 2 - Extracted from dict key '{key}': '{final_response}' (type: {type(final_response)})")
+                    break
+        
+        # Method 3: Check if it's a GraphState with intermediate results
+        elif hasattr(chat_result, 'intermediate_results') and chat_result.intermediate_results:
+            for node_name in ['response_generator', 'chat_response', 'final_node']:
+                if node_name in chat_result.intermediate_results:
+                    node_data = chat_result.intermediate_results[node_name]
+                    if isinstance(node_data, dict) and 'response' in node_data:
+                        final_response = node_data['response']
+                        response_source = f"intermediate_{node_name}"
+                        logger.info(f"DEBUG: Method 3 - Extracted from intermediate results '{node_name}': '{final_response}'")
+                        break
+        
+        # Method 4: Check node_results if available
+        elif hasattr(chat_result, 'node_results') and chat_result.node_results:
+            for node_name, node_info in chat_result.node_results.items():
+                if isinstance(node_info, dict) and 'result' in node_info:
+                    node_result = node_info['result']
+                    if hasattr(node_result, 'data') and isinstance(node_result.data, dict):
+                        if 'response' in node_result.data and node_result.data['response']:
+                            final_response = node_result.data['response']
+                            response_source = f"node_result_{node_name}"
+                            logger.info(f"DEBUG: Method 4 - Extracted from node result '{node_name}': '{final_response}'")
+                            break
+        
+        # Method 5: Fallback - try to convert result to string if it looks like content
+        if not final_response and chat_result:
+            if isinstance(chat_result, str) and chat_result.strip():
+                final_response = chat_result
+                response_source = "direct_string"
+                logger.info(f"DEBUG: Method 5 - Using direct string result: '{final_response}'")
+            elif hasattr(chat_result, '__str__'):
+                str_result = str(chat_result).strip()
+                if str_result and not str_result.startswith('<') and len(str_result) > 10:
+                    final_response = str_result
+                    response_source = "string_conversion"
+                    logger.info(f"DEBUG: Method 5 - Using string conversion: '{final_response[:100]}...'")
+        
+        logger.info(f"DEBUG: Final extraction result - Response: '{final_response}' | Source: {response_source} | Type: {type(final_response)}")
+        
+        # Validate the final response
+        if not final_response:
+            logger.error(f"DEBUG: All extraction methods failed. Raw result: {type(chat_result)} = {chat_result}")
+            error_details = {
+                "error": "Model returned an empty or invalid response after comprehensive extraction attempts.",
+                "debug_info": {
+                    "result_type": str(type(chat_result)),
+                    "has_final_response_attr": hasattr(chat_result, 'final_response'),
+                    "is_dict": isinstance(chat_result, dict),
+                    "dict_keys": list(chat_result.keys()) if isinstance(chat_result, dict) else None,
+                    "has_intermediate_results": hasattr(chat_result, 'intermediate_results'),
+                    "has_node_results": hasattr(chat_result, 'node_results'),
+                    "string_repr_length": len(str(chat_result)) if chat_result else 0
+                },
                 "suggestions": [
-                    "Try rephrasing your question.",
-                    "Check model health and logs."
+                    "Check if models are properly initialized",
+                    "Verify Ollama service is running",
+                    "Check model memory and GPU availability",
+                    "Review graph execution logs"
                 ]
+            }
+            raise HTTPException(status_code=500, detail=error_details)
+        
+        # Additional validation
+        if not isinstance(final_response, str):
+            try:
+                final_response = str(final_response)
+                logger.warning(f"DEBUG: Converted response to string: {type(final_response)}")
+            except Exception as conv_error:
+                logger.error(f"DEBUG: Failed to convert response to string: {conv_error}")
+                raise HTTPException(status_code=500, detail={
+                    "error": "Response format conversion failed",
+                    "details": str(conv_error)
+                })
+        
+        final_response = final_response.strip()
+        if not final_response:
+            logger.error("DEBUG: Response is empty after strip()")
+            raise HTTPException(status_code=500, detail={
+                "error": "Model response is empty after processing",
+                "extraction_source": response_source
             })
+        
+        logger.info(f"DEBUG: ✅ Successfully extracted and validated response from {response_source}: '{final_response[:100]}...' (length: {len(final_response)})")
         # Optionally, treat very short/single-word responses as errors
         if len(final_response.strip()) < 5 or len(final_response.strip().split()) < 2:
             logger.error(f"Model returned too short/meaningless response: {final_response}")

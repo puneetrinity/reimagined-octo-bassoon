@@ -1,88 +1,53 @@
-# Production-ready Dockerfile for RunPod A5000 Deployment
-# Optimized for GPU usage with complete AI Search System
-FROM nvidia/cuda:12.1.1-runtime-ubuntu22.04
+# RunPod-optimized Dockerfile for AI Search System
+FROM python:3.10-slim
 
-# Prevent interactive prompts during package installation
-ENV DEBIAN_FRONTEND=noninteractive
-
-# Set environment variables for Python and CUDA
+# Set environment variables for RunPod
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    CUDA_VISIBLE_DEVICES=0 \
-    NVIDIA_VISIBLE_DEVICES=all \
-    NVIDIA_DRIVER_CAPABILITIES=compute,utility
+    PYTHONPATH=/app \
+    PORT=8000 \
+    RUNPOD_POD_ID=${RUNPOD_POD_ID:-unknown} \
+    RUNPOD_TCP_PORT_8000=${RUNPOD_TCP_PORT_8000:-8000}
 
 # Set working directory
-WORKDIR /workspace
+WORKDIR /app
 
-# Install system dependencies including Python 3.10
+# Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    software-properties-common \
-    curl \
-    wget \
-    git \
     build-essential \
     gcc \
-    g++ \
-    python3.10 \
-    python3.10-dev \
-    python3-pip \
-    python3.10-venv \
-    redis-server \
-    nginx \
+    curl \
+    git \
     supervisor \
-    && add-apt-repository ppa:deadsnakes/ppa \
-    && apt-get update \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
 
-# Create symbolic links for python
-RUN ln -sf /usr/bin/python3.10 /usr/bin/python3 && \
-    ln -sf /usr/bin/python3.10 /usr/bin/python
-
-# Upgrade pip
-RUN python3 -m pip install --upgrade pip setuptools wheel
-
-# Install Ollama for GPU
-RUN curl -fsSL https://ollama.ai/install.sh | sh
-
-# Copy requirements first for better Docker layer caching
+# Copy requirements and install Python dependencies
 COPY requirements.txt requirements-dev.txt ./
-
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt && \
-    pip install --no-cache-dir -r requirements-dev.txt
+RUN pip install --upgrade pip setuptools wheel && \
+    pip install --no-cache-dir -r requirements.txt && \
+    pip install --no-cache-dir -r requirements-dev.txt && \
+    pip cache purge
 
 # Copy application code
 COPY app ./app
 COPY scripts ./scripts
 COPY docker ./docker
-COPY tests ./tests
+COPY .env* ./
 
-# Copy configuration files
-COPY .env.example .env
-COPY pytest.ini openapi.json ./
+# Copy RunPod-specific configurations
+COPY docker/supervisor.conf /etc/supervisor/conf.d/app.conf
 
-# Create necessary directories
-RUN mkdir -p /workspace/logs /workspace/data /workspace/models
+# Create directories and set permissions
+RUN mkdir -p /var/log/supervisor /app/logs && \
+    chmod +x scripts/*.py scripts/*.sh 2>/dev/null || true
 
-# Copy supervisor configuration for multi-service management
-COPY docker/supervisor.conf /etc/supervisor/conf.d/ai-search.conf
+# Expose the application port
+EXPOSE 8000
 
-# Copy startup script
-COPY docker/start-runpod.sh /workspace/start-runpod.sh
-RUN chmod +x /workspace/start-runpod.sh
+# Health check optimized for RunPod
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=5 \
+    CMD curl --fail http://localhost:8000/health/live || exit 1
 
-# Create entrypoint script for model initialization
-COPY docker/init-models.sh /workspace/init-models.sh
-RUN chmod +x /workspace/init-models.sh
-
-# Expose ports
-EXPOSE 8000 11434 6379 22
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:8000/health/live || exit 1
-
-# Set the entrypoint
-ENTRYPOINT ["/workspace/start-runpod.sh"]
-CMD ["supervisord", "-c", "/etc/supervisor/supervisord.conf", "-n"]
+# Use supervisor to manage services
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/supervisord.conf"]

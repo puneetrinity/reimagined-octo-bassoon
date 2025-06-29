@@ -1,0 +1,25 @@
+# RunPod Deployment Commands
+# =========================
+
+# 1. Build and push Docker image
+docker build -f Dockerfile.runpod -t your-registry/ai-search-system:runpod .
+docker push your-registry/ai-search-system:runpod
+
+# 2. Create RunPod deployment with these settings:
+# - Container Image: your-registry/ai-search-system:runpod
+# - Container Disk: 20GB (minimum)
+# - Expose HTTP Ports: 8000
+# - GPU: A5000 or better (recommended)
+
+# 3. Environment Variables to set in RunPod:
+# OLLAMA_HOST=http://localhost:11434
+# REDIS_URL=redis://localhost:6379
+# ENVIRONMENT=production
+
+# 4. After deployment, test with:
+curl http://$RUNPOD_PUBLIC_IP:$RUNPOD_TCP_PORT_8000/health/live
+
+# 5. Test chat API:
+curl -X POST http://$RUNPOD_PUBLIC_IP:$RUNPOD_TCP_PORT_8000/api/v1/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message": "Hello, how are you?"}'
