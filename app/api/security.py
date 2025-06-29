@@ -175,10 +175,46 @@ class InputSanitizer:
 
 
 class RateLimiter:
-    """Simple in-memory rate limiter."""
+    """Simple in-memory rate limiter with cleanup to prevent memory growth."""
 
-    def __init__(self):
+    def __init__(self, max_identifiers: int = 10000):
         self.requests: Dict[str, List[float]] = {}
+        self.max_identifiers = max_identifiers
+        self.last_cleanup = time.time()
+
+    def _cleanup(self, window: int = RATE_LIMIT_WINDOW) -> None:
+        """Clean up old entries and limit memory usage."""
+        now = time.time()
+        
+        # Only cleanup every 5 minutes to avoid performance impact
+        if now - self.last_cleanup < 300:
+            return
+            
+        # Clean old entries
+        identifiers_to_remove = []
+        for identifier, req_times in self.requests.items():
+            # Remove old requests
+            valid_requests = [req_time for req_time in req_times if now - req_time < window]
+            if valid_requests:
+                self.requests[identifier] = valid_requests
+            else:
+                identifiers_to_remove.append(identifier)
+        
+        # Remove empty identifiers
+        for identifier in identifiers_to_remove:
+            del self.requests[identifier]
+        
+        # If still too many identifiers, remove oldest
+        if len(self.requests) > self.max_identifiers:
+            # Sort by most recent request time and keep only the most recent max_identifiers
+            sorted_identifiers = sorted(
+                self.requests.items(),
+                key=lambda x: max(x[1]) if x[1] else 0,
+                reverse=True
+            )[:self.max_identifiers]
+            self.requests = dict(sorted_identifiers)
+        
+        self.last_cleanup = now
 
     def is_allowed(
         self,
@@ -188,8 +224,11 @@ class RateLimiter:
     ) -> bool:
         """Check if request is within rate limits."""
         now = time.time()
+        
+        # Periodic cleanup
+        self._cleanup(window)
 
-        # Clean old entries
+        # Clean old entries for this identifier
         if identifier in self.requests:
             self.requests[identifier] = [
                 req_time
@@ -765,32 +804,6 @@ class APIKeyManager:
 
 
 api_key_manager = APIKeyManager()
-
-
-async def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
-) -> User:
-    api_key = credentials.credentials if credentials else None
-    user_config = api_key_manager.validate_api_key(api_key)
-    if not user_config:
-        # Always return a User object, even for anonymous
-        return User(
-            user_id="anon",
-            tier="anonymous",
-            monthly_budget=5.0,
-            permissions=["chat"],
-            is_anonymous=True,
-        )
-    return User(
-        user_id=user_config["user_id"],
-        tier=user_config["tier"],
-        monthly_budget=user_config.get(
-            "current_budget", user_config.get("monthly_budget", 20.0)
-        ),
-        permissions=user_config.get("permissions", ["chat"]),
-        is_anonymous=False,
-        api_key=api_key,
-    )
 
 
 # Export security components

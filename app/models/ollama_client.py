@@ -356,15 +356,19 @@ class OllamaClient:
 
             for model in models:
                 if model.get("name") == model_name:
-                    # Model exists, check if it's loaded by making a small test request
+                    # Model exists, check if it's loaded by making a minimal health check
                     try:
-                        test_result = await self.generate(
-                            model_name=model_name,
-                            prompt="test",
-                            max_tokens=1
-                        )
-
-                        status = ModelStatus.READY if test_result.success else ModelStatus.ERROR
+                        # Use a minimal model info request instead of generation for health checks
+                        # This avoids creating unnecessary generation requests
+                        url = f"{self.base_url}/api/show"
+                        payload = {"name": model_name}
+                        
+                        async with httpx.AsyncClient(timeout=5.0) as client:
+                            response = await client.post(url, json=payload)
+                            if response.status_code == 200:
+                                status = ModelStatus.READY
+                            else:
+                                status = ModelStatus.ERROR
 
                         logger.debug(
                             "Model status checked",
@@ -375,7 +379,8 @@ class OllamaClient:
 
                         return status
 
-                    except Exception:
+                    except Exception as e:
+                        logger.debug(f"Model health check failed: {e}")
                         return ModelStatus.ERROR
 
             # Model not found in list

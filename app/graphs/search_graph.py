@@ -244,8 +244,10 @@ class BraveSearchNode(BaseGraphNode):
             query = state.original_query
             max_results = kwargs.get("max_results", 10)
 
-            # Check cache first
-            cache_key = f"brave_search:{hash(query)}:{max_results}"
+            # Check cache first - use SHA256 to avoid hash collisions
+            import hashlib
+            query_hash = hashlib.sha256(query.encode('utf-8')).hexdigest()[:16]
+            cache_key = f"brave_search:{query_hash}:{max_results}"
             cached_results = await self.cache_manager.get(cache_key)
 
             if cached_results:

@@ -167,12 +167,16 @@ class IntentClassifierNode(BaseGraphNode):
             logger.debug(
                 f"[IntentClassifierNode] About to call model: {model_name} with timeout: {timeout}s | prompt_len={len(classification_prompt)} | correlation_id={correlation_id}"
             )
-            # Health check before model call
+            # Non-blocking health check before model call
             health_ok = False
             try:
-                health_ok = await asyncio.wait_for(self.model_manager.ollama_client.health_check(), timeout=1.0)
-            except Exception as health_exc:
-                logger.error(f"[IntentClassifierNode] Ollama health check failed: {health_exc} | correlation_id={correlation_id}")
+                # Use asyncio.create_task to make health check non-blocking
+                health_task = asyncio.create_task(self.model_manager.ollama_client.health_check())
+                health_ok = await asyncio.wait_for(health_task, timeout=1.0)
+            except (asyncio.TimeoutError, Exception) as health_exc:
+                logger.debug(f"[IntentClassifierNode] Ollama health check failed/timeout: {health_exc} | correlation_id={correlation_id}")
+                # Don't fail the request, just skip to fallback
+                health_ok = False
             if not health_ok:
                 logger.warning(f"[IntentClassifierNode] Ollama unhealthy, falling back to rule-based | correlation_id={correlation_id}")
                 intent = self._classify_intent_rule_based(query)
@@ -1004,9 +1008,15 @@ class ChatGraph(BaseGraph):
 
     def build(self) -> None:
         """Build the chat graph with conditional routing."""
+        # Check if already built to prevent double compilation
+        if hasattr(self, '_compiled') and self._compiled:
+            logger.debug("Graph already built, skipping compilation")
+            return
+        
         # Call parent build which will handle START/END properly
         # This will compile the graph, so no modifications after this point
         super().build()
+        self._compiled = True
 
     async def execute(self, state: GraphState) -> GraphState:
         import time

@@ -142,6 +142,10 @@ class ModelManager:
         self.cost_tracker = collections.defaultdict(float)
         self.performance_metrics = {}
         
+        # Model selection cache to avoid expensive recalculations
+        self._selection_cache: Dict[str, tuple] = {}  # (model_name, cache_time)
+        self._cache_ttl = 60  # Cache for 60 seconds
+        
         # Threading for background operations
         self._background_lock = threading.Lock()
         
@@ -285,6 +289,21 @@ class ModelManager:
         """
         context = context or {}
         
+        # Create cache key
+        cache_key = f"{task_type.value if hasattr(task_type, 'value') else str(task_type)}:{quality_requirement.value if hasattr(quality_requirement, 'value') else str(quality_requirement)}"
+        
+        # Check cache first
+        if cache_key in self._selection_cache:
+            cached_model, cache_time = self._selection_cache[cache_key]
+            if time.time() - cache_time < self._cache_ttl:
+                # Verify cached model is still available
+                if cached_model in self.models and self.models[cached_model].status == ModelStatus.READY:
+                    logger.debug(f"Using cached model selection: {cached_model}")
+                    return cached_model
+                else:
+                    # Remove invalid cache entry
+                    del self._selection_cache[cache_key]
+        
         # Get task-specific model preferences
         task_name = task_type.value if hasattr(task_type, 'value') else str(task_type)
         quality_name = quality_requirement.value if hasattr(quality_requirement, 'value') else str(quality_requirement)
@@ -307,13 +326,15 @@ class ModelManager:
             for model_name, model_info in self.models.items():
                 if model_info.status == ModelStatus.READY:
                     logger.warning(f"Using emergency fallback model: {model_name}")
+                    # Cache the emergency fallback for a shorter time
+                    self._selection_cache[cache_key] = (model_name, time.time())
                     return model_name
             
             # If no models are available, return a common default
             logger.error("No models available - using default fallback")
             return "llama2:7b-chat"
         
-        # Select best model based on performance metrics
+        # Select best model based on performance metrics (only if not cached)
         best_model = available_models[0]
         if len(available_models) > 1:
             best_score = 0
@@ -332,6 +353,9 @@ class ModelManager:
                     if score > best_score:
                         best_score = score
                         best_model = model_name
+        
+        # Cache the result
+        self._selection_cache[cache_key] = (best_model, time.time())
         
         logger.debug(f"Selected model {best_model} for {task_type}/{quality_requirement}")
         return best_model
