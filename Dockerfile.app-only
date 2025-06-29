@@ -35,6 +35,10 @@ COPY app ./app
 COPY scripts ./scripts
 COPY .env.example .env
 
+# Create log directories BEFORE copying supervisor config to prevent timing issues
+RUN mkdir -p /app/logs /var/log/supervisor && \
+    chmod 755 /app/logs /var/log/supervisor
+
 # Copy docker configuration files
 COPY docker/supervisor.conf /etc/supervisor/conf.d/ai-search.conf
 
