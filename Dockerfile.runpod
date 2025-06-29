@@ -37,9 +37,14 @@ COPY scripts ./scripts
 COPY docker ./docker
 COPY .env* ./
 
-# Copy RunPod-specific configurations - FORCE CORRECT FILES
+# Copy RunPod-specific configurations - FORCE CORRECT FILES - CACHE BUST v2
 COPY docker/supervisor-runpod.conf /etc/supervisor/conf.d/ai-search.conf
 COPY docker/supervisord.conf /etc/supervisor/supervisord.conf
+
+# Verify supervisor config is correct (debug step)
+RUN echo "=== SUPERVISOR CONFIG VERIFICATION ===" && \
+    cat /etc/supervisor/conf.d/ai-search.conf | grep -E "(stderr_logfile|stdout_logfile)" || true && \
+    echo "=== END VERIFICATION ==="
 
 # Create directories and set permissions - COMPREHENSIVE
 RUN mkdir -p /var/log/supervisor /app/logs /root/.ollama/models /var/run /tmp && \
