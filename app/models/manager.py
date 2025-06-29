@@ -791,7 +791,7 @@ class ModelManager:
         total_requests = 0
 
         for model_name, model_info in self.models.items():
-            _stats["model_details"][model_name] = {
+            base_stats["model_details"][model_name] = {
                 "status": model_info.status.value,
                 "tier": model_info.tier,
                 "total_requests": model_info.total_requests,
@@ -814,14 +814,14 @@ class ModelManager:
 
         # Calculate averages
         if self.models:
-            _stats["performance_summary"]["avg_response_time"] = round(
+            base_stats["performance_summary"]["avg_response_time"] = round(
                 total_response_time / len(self.models), 3
             )
-            _stats["performance_summary"]["avg_success_rate"] = round(
+            base_stats["performance_summary"]["avg_success_rate"] = round(
                 total_success_rate / len(self.models), 3
             )
 
-        _stats["performance_summary"]["total_requests"] = total_requests
+        base_stats["performance_summary"]["total_requests"] = total_requests
 
         # Add A5000 memory stats if available
         try:
