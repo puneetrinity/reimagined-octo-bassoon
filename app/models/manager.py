@@ -506,6 +506,25 @@ class ModelManager:
             "is_initialized": self.is_initialized
         }
 
+    def get_model_stats(self) -> Dict[str, Any]:
+        """Get model statistics (alias for get_stats for health check compatibility)."""
+        stats = self.get_stats()
+        # Add additional stats that health checks expect
+        stats.update({
+            "loaded_models": stats["available_models"],
+            "status": "healthy" if self.is_initialized else "initializing",
+            "models": {
+                name: {
+                    "status": model.status.value if hasattr(model.status, 'value') else str(model.status),
+                    "requests": model.total_requests,
+                    "avg_response_time": model.avg_response_time,
+                    "last_used": model.last_used.isoformat() if model.last_used else None
+                }
+                for name, model in self.models.items()
+            }
+        })
+        return stats
+
 
 # Export main classes
 __all__ = [
