@@ -455,10 +455,12 @@ class OllamaClient:
 
                 # Extract response text
                 response_text = response.get("response", "")
-                if not response_text:
-                    logger.warning(
-                        f"[LLM] Empty response on attempt {attempt+1}, using fallback message.")
-                    response_text = "I'm sorry, I couldn't generate a response. Please try rephrasing your question."
+                logger.debug(f"Raw Ollama response: {response}")
+                
+                # Better empty response handling
+                if not response_text or response_text.strip() == "":
+                    logger.error(f"Empty response from Ollama for model {model_name}. Raw response: {response}")
+                    response_text = f"Hello! I'm ready to help you. Could you please rephrase your question? (Model: {model_name})"
 
                 # Calculate performance metrics
                 total_duration = response.get("total_duration", 0)
