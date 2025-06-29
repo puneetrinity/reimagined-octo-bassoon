@@ -38,11 +38,16 @@ COPY docker ./docker
 COPY .env* ./
 
 # Copy RunPod-specific configurations
-COPY docker/supervisor.conf /etc/supervisor/conf.d/app.conf
+COPY docker/supervisor-runpod.conf /etc/supervisor/conf.d/ai-search.conf
 
 # Create directories and set permissions
-RUN mkdir -p /var/log/supervisor /app/logs && \
-    chmod +x scripts/*.py scripts/*.sh 2>/dev/null || true
+RUN mkdir -p /var/log/supervisor /app/logs /root/.ollama/models && \
+    chmod +x scripts/*.py scripts/*.sh 2>/dev/null || true && \
+    touch /app/logs/api.log /app/logs/redis.err.log /app/logs/redis.out.log && \
+    touch /app/logs/ollama.err.log /app/logs/ollama.out.log && \
+    touch /app/logs/model-init.err.log /app/logs/model-init.out.log && \
+    touch /app/logs/health.err.log /app/logs/health.out.log && \
+    chmod +x scripts/runpod-startup.sh
 
 # Expose the application port
 EXPOSE 8000
@@ -51,5 +56,5 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=5 \
     CMD curl --fail http://localhost:8000/health/live || exit 1
 
-# Use supervisor to manage services
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/supervisord.conf"]
+# Use the RunPod startup script
+CMD ["/app/scripts/runpod-startup.sh"]
