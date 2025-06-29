@@ -64,7 +64,7 @@ COPY .env* ./
 COPY docker/supervisor.conf /etc/supervisor/conf.d/app.conf
 
 # Create directories and set permissions
-RUN mkdir -p /var/log/supervisor /app/logs && \\
+RUN mkdir -p /var/log/supervisor && \\
     chmod +x scripts/*.py scripts/*.sh 2>/dev/null || true
 
 # Expose the application port
@@ -102,7 +102,7 @@ user=root
 autostart=true
 autorestart=true
 redirect_stderr=true
-stdout_logfile=/app/logs/api.log
+stdout_logfile=/var/log/supervisor/api.log
 stdout_logfile_maxbytes=50MB
 stdout_logfile_backups=3
 environment=PYTHONPATH="/app"
@@ -116,7 +116,7 @@ autorestart=false
 startsecs=0
 startretries=3
 redirect_stderr=true
-stdout_logfile=/app/logs/startup.log
+stdout_logfile=/var/log/supervisor/startup.log
 priority=10
 '''
     
@@ -145,12 +145,12 @@ export OLLAMA_HOST=${OLLAMA_HOST:-http://localhost:11434}
 export REDIS_URL=${REDIS_URL:-redis://localhost:6379}
 
 # Create log directory
-mkdir -p /app/logs
+mkdir -p /var/log/supervisor
 
 # Start Ollama in background (if not already running)
 if ! pgrep -f ollama >/dev/null 2>&1; then
     echo "🦙 Starting Ollama..."
-    ollama serve > /app/logs/ollama.log 2>&1 &
+    ollama serve > /var/log/supervisor/ollama.log 2>&1 &
     sleep 10
     
     # Pull essential models

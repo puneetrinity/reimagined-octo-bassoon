@@ -32,4 +32,4 @@ docker logs $(docker ps -q) --tail 100
 docker exec -it $(docker ps -q) bash
 # Then run:
 supervisorctl status
-tail -f /app/logs/api.log
+tail -f /var/log/supervisor/api.log

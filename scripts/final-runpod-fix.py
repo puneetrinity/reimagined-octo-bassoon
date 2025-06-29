@@ -69,7 +69,7 @@ def main():
         print("📖 API documentation: http://localhost:8000/docs")
     else:
         print("\n⚠️ API health check failed, but services may still be starting...")
-        print("💡 Check logs: tail -f /app/logs/*.log")
+        print("💡 Check logs: tail -f /var/log/supervisor/*.log")
     
     return success_count == len(fixes)
 

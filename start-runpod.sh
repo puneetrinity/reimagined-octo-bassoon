@@ -11,12 +11,12 @@ export OLLAMA_HOST=${OLLAMA_HOST:-http://localhost:11434}
 export REDIS_URL=${REDIS_URL:-redis://localhost:6379}
 
 # Create log directory
-mkdir -p /app/logs
+mkdir -p /var/log/supervisor
 
 # Start Ollama in background (if not already running)
 if ! pgrep -f ollama >/dev/null 2>&1; then
     echo "🦙 Starting Ollama..."
-    ollama serve > /app/logs/ollama.log 2>&1 &
+    ollama serve > /var/log/supervisor/ollama.log 2>&1 &
     sleep 10
     
     # Pull essential models
@@ -28,7 +28,7 @@ fi
 # Start Redis (if not already running)
 if ! pgrep -f redis-server >/dev/null 2>&1; then
     echo "🗄️ Starting Redis..."
-    redis-server --daemonize yes --logfile /app/logs/redis.log
+    redis-server --daemonize yes --logfile /var/log/supervisor/redis.log
 fi
 
 # Validate startup
