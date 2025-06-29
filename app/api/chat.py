@@ -215,15 +215,21 @@ async def chat_complete(
             chat_graph_instance, graph_state, timeout=chat_request.max_execution_time
         )
         chat_result = await ensure_awaited(chat_result)
-        if not hasattr(chat_result, "final_response"):
-            logger.error(f"Chat result missing final_response: {type(chat_result)}")
-            raise ValueError("Invalid chat result structure")
-        # PATCH: Validate model output (final_response)
-        final_response = getattr(chat_result, "final_response", None)
+        # Handle GraphState object result - FIXED for GraphState compatibility
+        final_response = None
+        if hasattr(chat_result, 'final_response'):
+            final_response = chat_result.final_response
+            logger.debug(f"Extracted final_response from GraphState: {final_response}")
+        elif isinstance(chat_result, dict):
+            final_response = chat_result.get('final_response') or chat_result.get('response')
+            logger.debug(f"Dict result, extracted: {final_response}")
+        else:
+            logger.error(f"Unexpected result type: {type(chat_result)}")
+        
         if not final_response or not isinstance(final_response, str) or not final_response.strip():
             logger.error(f"Model returned empty or invalid response: {final_response}")
             raise HTTPException(status_code=500, detail={
-                "error": "Model returned an empty or invalid response.",
+                "error": "Model returned an empty or invalid response. This may be due to model initialization issues.",
                 "suggestions": [
                     "Try rephrasing your question.",
                     "Check model health and logs."
@@ -253,7 +259,7 @@ async def chat_complete(
             conversation_summary=conversation_summary,
         )
         chat_data = ChatData(
-            response=chat_result.final_response,
+            response=final_response,
             session_id=session_id,
             context=conversation_context,
             sources=getattr(chat_result, "sources_consulted", []),
@@ -278,7 +284,7 @@ async def chat_complete(
         # Always append the current exchange to the incoming conversation_history
         conversation_entry = {
             "user_message": chat_request.message,
-            "assistant_response": getattr(chat_result, "final_response", None),
+            "assistant_response": final_response,
             "query_id": query_id,
             "timestamp": datetime.utcnow().isoformat(),
             "intent": getattr(chat_result, "query_intent", None),
@@ -361,7 +367,7 @@ async def chat_complete(
             log_chat_analytics,
             query_id,
             chat_request.message,  # FIXED: was request.message
-            chat_result.final_response,
+            final_response,  # Use extracted final_response
             execution_time,
             total_cost,
         )
@@ -447,7 +453,7 @@ async def chat_stream(
                 if cache_manager:
                     cached_response = await cache_manager.get(cache_key)
                     if cached_response:
-                        logger.debug(f"Cache hit for query: {query[:50]}...")
+                        logger.debug(f"Cache hit for query: {user_message[:50]}...")
                         # Return cached response as stream
                         response_text = json.loads(cached_response).get('content', '')
                         if response_text:
