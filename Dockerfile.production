@@ -72,10 +72,11 @@ COPY docker/supervisord.conf /etc/supervisor/supervisord.conf
 COPY docker/supervisor.conf /etc/supervisor/conf.d/ai-search.conf
 COPY docker/init-models.sh /app/init-models.sh
 COPY start-app.sh /app/start-app.sh
+COPY start-app-production.sh /app/start-app-production.sh
 
 # Fix line endings and permissions
-RUN sed -i 's/\r$//' /app/start-app.sh /app/init-models.sh /app/scripts/health-check.sh /app/scripts/supervisord-wrapper.sh /app/scripts/wait-for-services.sh /app/scripts/supervisorctl-wrapper.sh && \
-    chmod +x /app/start-app.sh /app/init-models.sh /app/scripts/health-check.sh /app/scripts/supervisord-wrapper.sh /app/scripts/wait-for-services.sh /app/scripts/supervisorctl-wrapper.sh && \
+RUN sed -i 's/\r$//' /app/start-app.sh /app/start-app-production.sh /app/init-models.sh /app/scripts/health-check.sh /app/scripts/supervisord-wrapper.sh /app/scripts/wait-for-services.sh /app/scripts/supervisorctl-wrapper.sh && \
+    chmod +x /app/start-app.sh /app/start-app-production.sh /app/init-models.sh /app/scripts/health-check.sh /app/scripts/supervisord-wrapper.sh /app/scripts/wait-for-services.sh /app/scripts/supervisorctl-wrapper.sh && \
     ln -sf /app/scripts/supervisorctl-wrapper.sh /usr/local/bin/supervisorctl-clean && \
     echo "=== Final verification ===" && \
     ls -la /app/ && \
