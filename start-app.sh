@@ -6,8 +6,8 @@ echo "Starting AI Search System - Production Container"
 echo "================================================="
 
 # Create necessary directories with proper permissions
-mkdir -p /workspace/logs /workspace/data /workspace/models /root/.ollama/models
-chmod 755 /workspace/logs /workspace/data /workspace/models /root/.ollama /root/.ollama/models
+mkdir -p /workspace/logs /workspace/data /workspace/models /root/.ollama/models /var/run
+chmod 755 /workspace/logs /workspace/data /workspace/models /root/.ollama /root/.ollama/models /var/run
 
 # Set environment variables
 export REDIS_URL="${REDIS_URL:-redis://localhost:6379}"
