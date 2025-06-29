@@ -35,7 +35,20 @@ RUN pip3 install --no-cache-dir --upgrade pip setuptools wheel && \
 # Copy application code
 COPY app ./app
 COPY start-app-production.sh ./start-app.sh
-COPY .env.example .env
+
+# Create .env configuration directly
+RUN cat > .env << 'EOF'
+# AI Search System Configuration
+ENVIRONMENT=production
+API_HOST=0.0.0.0
+API_PORT=8000
+OLLAMA_HOST=http://localhost:11434
+REDIS_URL=redis://localhost:6379
+DEFAULT_MODEL=phi3:mini
+FALLBACK_MODEL=tinyllama:latest
+CUDA_VISIBLE_DEVICES=0
+LOG_LEVEL=INFO
+EOF
 
 # Create necessary directories and set permissions
 RUN mkdir -p /app/logs /app/data /app/models /root/.ollama/models && \

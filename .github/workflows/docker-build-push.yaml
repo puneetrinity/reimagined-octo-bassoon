@@ -64,16 +64,16 @@ jobs:
         labels: ${{ steps.meta.outputs.labels }}
         no-cache: true
         
-    - name: Build and push GPU-optimized image
+    - name: Build and push RunPod-optimized image
       uses: docker/build-push-action@v5
       with:
         context: .
-        file: ./Dockerfile.production
+        file: ./Dockerfile.runpod-simple
         platforms: linux/amd64
         push: ${{ github.event_name != 'pull_request' }}
         tags: |
-          ${{ env.REGISTRY }}/puneetrinity/${{ env.IMAGE_NAME }}:gpu
           ${{ env.REGISTRY }}/puneetrinity/${{ env.IMAGE_NAME }}:runpod
+          ${{ env.REGISTRY }}/puneetrinity/${{ env.IMAGE_NAME }}:simple
         labels: ${{ steps.meta.outputs.labels }}
         no-cache: true
         
@@ -93,9 +93,9 @@ jobs:
         echo "========================" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "**DockerHub Images Built:**" >> $GITHUB_STEP_SUMMARY
-        echo "- \`${{ env.REGISTRY }}/puneetrinity/${{ env.IMAGE_NAME }}:latest\` (App-only, fast deploy)" >> $GITHUB_STEP_SUMMARY
-        echo "- \`${{ env.REGISTRY }}/puneetrinity/${{ env.IMAGE_NAME }}:gpu\` (GPU-optimized)" >> $GITHUB_STEP_SUMMARY
-        echo "- \`${{ env.REGISTRY }}/puneetrinity/${{ env.IMAGE_NAME }}:runpod\` (RunPod ready)" >> $GITHUB_STEP_SUMMARY
+        echo "- \`${{ env.REGISTRY }}/puneetrinity/${{ env.IMAGE_NAME }}:latest\` (Production build)" >> $GITHUB_STEP_SUMMARY
+        echo "- \`${{ env.REGISTRY }}/puneetrinity/${{ env.IMAGE_NAME }}:runpod\` (RunPod optimized)" >> $GITHUB_STEP_SUMMARY
+        echo "- \`${{ env.REGISTRY }}/puneetrinity/${{ env.IMAGE_NAME }}:simple\` (Simplified build)" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "**RunPod Deployment Commands:**" >> $GITHUB_STEP_SUMMARY
         echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY

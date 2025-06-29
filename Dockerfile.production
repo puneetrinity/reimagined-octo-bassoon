@@ -63,7 +63,61 @@ RUN mkdir -p /app/logs /app/data /app/models /root/.ollama/models /var/log/super
 # Copy application code to /app
 COPY app ./app
 COPY scripts ./scripts
-COPY .env.example ./
+
+# Create .env.example directly to avoid copy issues
+RUN cat > .env.example << 'EOF'
+# Environment configuration for AI Search System
+APP_NAME="AI Search System"
+ENVIRONMENT=production
+DEBUG=false
+API_HOST=0.0.0.0
+API_PORT=8000
+
+# Ollama Configuration
+OLLAMA_HOST=http://localhost:11434
+OLLAMA_TIMEOUT=60
+OLLAMA_MAX_RETRIES=3
+DEFAULT_MODEL=phi3:mini
+FALLBACK_MODEL=tinyllama:latest
+
+# Redis Configuration
+REDIS_URL=redis://localhost:6379
+REDIS_MAX_CONNECTIONS=20
+REDIS_TIMEOUT=5
+
+# Search Providers
+BRAVE_SEARCH_API_KEY=your_brave_search_api_key_here
+SCRAPINGBEE_API_KEY=your_scrapingbee_api_key_here
+
+# ClickHouse Analytics
+CLICKHOUSE_HOST=localhost
+CLICKHOUSE_PORT=8123
+CLICKHOUSE_DATABASE=ai_search_metrics
+CLICKHOUSE_USERNAME=default
+CLICKHOUSE_PASSWORD=
+
+# Performance Settings
+CACHE_TTL_SHORT=1800
+CACHE_TTL_MEDIUM=3600
+CACHE_TTL_LONG=7200
+MODEL_MEMORY_LIMIT_GB=20
+ENABLE_MODEL_SWAPPING=true
+
+# Security
+JWT_SECRET_KEY=your_jwt_secret_key_here
+JWT_ALGORITHM=HS256
+JWT_EXPIRATION_HOURS=24
+
+# Monitoring
+LOG_LEVEL=INFO
+ENABLE_PROMETHEUS_METRICS=true
+PROMETHEUS_PORT=9090
+
+# RunPod Settings
+CUDA_VISIBLE_DEVICES=0
+NVIDIA_VISIBLE_DEVICES=all
+CONTAINER_SHARED_MEMORY_SIZE=2g
+EOF
 
 # Create log directories BEFORE copying supervisor config to prevent timing issues
 RUN mkdir -p /app/logs /var/log/supervisor && \
