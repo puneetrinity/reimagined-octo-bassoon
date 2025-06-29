@@ -63,6 +63,7 @@ RUN mkdir -p /app/logs /app/data /app/models /root/.ollama/models /var/log/super
 # Copy application code to /app
 COPY app ./app
 COPY scripts ./scripts
+COPY .env.example ./
 
 # Create log directories BEFORE copying supervisor config to prevent timing issues
 RUN mkdir -p /app/logs /var/log/supervisor && \
@@ -92,8 +93,8 @@ RUN mkdir -p /workspace && \
     ln -sf /app/scripts/health-check.sh /workspace/health-check.sh && \
     ln -sf /app/scripts/supervisord-wrapper.sh /workspace/supervisord-wrapper.sh
 
-# Copy configuration
-COPY .env.example .env
+# Create default .env from example (if it doesn't exist)
+RUN cp .env.example .env
 
 # Verify config files are copied correctly
 RUN echo "=== Verifying supervisor config ===" && \
