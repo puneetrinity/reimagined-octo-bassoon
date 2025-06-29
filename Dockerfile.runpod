@@ -37,18 +37,21 @@ COPY scripts ./scripts
 COPY docker ./docker
 COPY .env* ./
 
-# Copy RunPod-specific configurations - FORCE CORRECT FILES - CACHE BUST v3
+# Copy RunPod-specific configurations - FORCE CORRECT FILES - CACHE BUST v4
 COPY docker/supervisor-runpod.conf /etc/supervisor/conf.d/ai-search.conf
 COPY docker/supervisord.conf /etc/supervisor/supervisord.conf
 
-# AGGRESSIVE VERIFICATION - Ensure no /app/logs references exist
-RUN echo "=== AGGRESSIVE SUPERVISOR CONFIG VERIFICATION ===" && \
+# ULTRA-AGGRESSIVE VERIFICATION - Ensure no /app/logs references exist
+RUN echo "=== ULTRA-AGGRESSIVE SUPERVISOR CONFIG VERIFICATION ===" && \
+    echo "BUILD TIME: $(date)" && \
     echo "Checking for /app/logs references (should be NONE):" && \
     grep -r "/app/logs" /etc/supervisor/ || echo "✅ No /app/logs references found" && \
     echo "Verifying correct log paths:" && \
     cat /etc/supervisor/conf.d/ai-search.conf | grep -E "(stderr_logfile|stdout_logfile)" && \
     echo "Checking program section names:" && \
     grep "^\[program:" /etc/supervisor/conf.d/ai-search.conf && \
+    echo "Full config file for verification:" && \
+    cat /etc/supervisor/conf.d/ai-search.conf && \
     echo "=== VERIFICATION COMPLETE ==="
 
 # Create directories and set permissions - COMPREHENSIVE
@@ -62,7 +65,7 @@ RUN mkdir -p /var/log/supervisor /app/logs /root/.ollama/models /var/run /tmp &&
     touch /var/log/supervisor/api.err.log /var/log/supervisor/api.out.log && \
     touch /var/log/supervisor/model-init.err.log /var/log/supervisor/model-init.out.log && \
     chmod 666 /var/log/supervisor/*.log && \
-    chmod +x scripts/runpod-startup.sh scripts/verify-supervisor-config.sh
+    chmod +x scripts/runpod-startup.sh scripts/verify-supervisor-config.sh scripts/emergency-supervisor-rewrite.sh
 
 # Expose the application port
 EXPOSE 8000

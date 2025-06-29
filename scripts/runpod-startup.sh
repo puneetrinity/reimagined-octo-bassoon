@@ -6,6 +6,33 @@ set -e
 echo "🚀 Starting AI Search System - RunPod Container"
 echo "================================================="
 
+# EMERGENCY FIX: Force replace any /app/logs references in supervisor config
+echo "🔧 EMERGENCY: Forcibly fixing supervisor config paths..."
+CONFIG_FILE="/etc/supervisor/conf.d/ai-search.conf"
+
+if [[ -f "$CONFIG_FILE" ]]; then
+    echo "📝 Original config:"
+    head -10 "$CONFIG_FILE"
+    
+    # Replace any /app/logs with /var/log/supervisor
+    sed -i 's|/app/logs|/var/log/supervisor|g' "$CONFIG_FILE"
+    
+    # Also ensure specific log file extensions are correct
+    sed -i 's|/var/log/supervisor/api\.log|/var/log/supervisor/api.err.log|g' "$CONFIG_FILE"
+    
+    echo "📝 Fixed config:"
+    head -10 "$CONFIG_FILE"
+else
+    echo "❌ Supervisor config file not found: $CONFIG_FILE"
+fi
+
+# NUCLEAR OPTION: Completely rewrite supervisor config
+if [[ -f /app/scripts/emergency-supervisor-rewrite.sh ]]; then
+    echo "🔥 NUCLEAR OPTION: Completely rewriting supervisor config..."
+    chmod +x /app/scripts/emergency-supervisor-rewrite.sh
+    /app/scripts/emergency-supervisor-rewrite.sh
+fi
+
 # Run supervisor config verification FIRST
 if [[ -f /app/scripts/verify-supervisor-config.sh ]]; then
     echo "🔍 Running supervisor config verification..."
