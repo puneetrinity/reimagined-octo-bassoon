@@ -37,8 +37,8 @@ COPY scripts ./scripts
 COPY docker ./docker
 COPY .env* ./
 
-# Copy RunPod-specific configurations - FIXED VERSION
-COPY docker/supervisor-runpod-safe.conf /etc/supervisor/conf.d/ai-search.conf
+# Copy RunPod-specific configurations - FORCE CORRECT FILES
+COPY docker/supervisor-runpod.conf /etc/supervisor/conf.d/ai-search.conf
 COPY docker/supervisord.conf /etc/supervisor/supervisord.conf
 
 # Create directories and set permissions - COMPREHENSIVE
