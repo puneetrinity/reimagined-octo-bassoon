@@ -13,7 +13,7 @@ import structlog
 from app.storage.clickhouse_client import get_clickhouse_manager
 from app.schemas.responses import create_success_response, create_error_response
 
-router = APIRouter(prefix="/api/v1/analytics", tags=["Analytics"])
+router = APIRouter(tags=["Analytics"])
 logger = structlog.get_logger(__name__)
 
 

@@ -9,7 +9,7 @@ import structlog
 
 logger = structlog.get_logger(__name__)
 
-router = APIRouter(prefix="/monitoring", tags=["monitoring"])
+router = APIRouter(tags=["monitoring"])
 
 
 @router.get("/system/metrics")

@@ -16,7 +16,7 @@ from app.evaluation.adaptive_evaluator import RoutingPerformanceAnalyzer, Evalua
 from app.schemas.responses import create_success_response, create_error_response
 # Authentication temporarily disabled for deployment
 
-router = APIRouter(prefix="/api/v1/evaluation", tags=["Evaluation"])
+router = APIRouter(tags=["Evaluation"])
 logger = structlog.get_logger(__name__)
 
 

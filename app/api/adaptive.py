@@ -17,7 +17,7 @@ from app.models.manager import ModelManager
 
 logger = structlog.get_logger(__name__)
 
-router = APIRouter(prefix="/adaptive", tags=["adaptive"])
+router = APIRouter(tags=["adaptive"])
 
 # Global adaptive router instance (will be initialized on startup)
 _adaptive_router: Optional[AdaptiveIntelligentRouter] = None
