@@ -37,20 +37,21 @@ COPY scripts ./scripts
 COPY docker ./docker
 COPY .env* ./
 
-# Copy RunPod-specific configurations
-COPY docker/supervisor-runpod.conf /etc/supervisor/conf.d/ai-search.conf
-COPY docker/supervisord.conf /etc/supervisor/supervisord.conf
+# Copy RunPod-specific configurations - SAFE VERSION
+COPY docker/supervisor-runpod-safe.conf /etc/supervisor/conf.d/ai-search.conf
+COPY docker/supervisord-simple.conf /etc/supervisor/supervisord.conf
 
-# Create directories and set permissions
-RUN mkdir -p /var/log/supervisor /app/logs /root/.ollama/models /var/run && \
-    chmod 755 /app/logs /var/log/supervisor && \
+# Create directories and set permissions - COMPREHENSIVE
+RUN mkdir -p /var/log/supervisor /app/logs /root/.ollama/models /var/run /tmp && \
+    chmod 755 /app/logs /var/log/supervisor /var/run && \
+    chown root:root /app/logs /var/log/supervisor /var/run && \
     chmod +x scripts/*.py scripts/*.sh 2>/dev/null || true && \
-    touch /app/logs/api.log /app/logs/redis.err.log /app/logs/redis.out.log && \
-    touch /app/logs/ollama.err.log /app/logs/ollama.out.log && \
-    touch /app/logs/model-init.err.log /app/logs/model-init.out.log && \
-    touch /app/logs/health.err.log /app/logs/health.out.log && \
-    touch /app/logs/supervisord.log && \
-    chmod 666 /app/logs/*.log && \
+    touch /var/log/supervisor/supervisord.log && \
+    touch /var/log/supervisor/redis.err.log /var/log/supervisor/redis.out.log && \
+    touch /var/log/supervisor/ollama.err.log /var/log/supervisor/ollama.out.log && \
+    touch /var/log/supervisor/api.err.log /var/log/supervisor/api.out.log && \
+    touch /var/log/supervisor/model-init.err.log /var/log/supervisor/model-init.out.log && \
+    chmod 666 /var/log/supervisor/*.log && \
     chmod +x scripts/runpod-startup.sh
 
 # Expose the application port

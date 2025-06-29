@@ -6,28 +6,39 @@ set -e
 echo "🚀 Starting AI Search System - RunPod Container"
 echo "================================================="
 
-# Environment information
-echo "Environment configured:"
-echo "  - Ollama: ${OLLAMA_BASE_URL:-http://localhost:11434}"
-echo "  - Environment: ${ENVIRONMENT:-production}"
-echo "  - API: 0.0.0.0:8000"
-echo "  - RunPod Pod ID: ${RUNPOD_POD_ID:-unknown}"
-echo "  - RunPod Port: ${RUNPOD_TCP_PORT_8000:-8000}"
+# FIRST PRIORITY: Create all directories that supervisor needs
+echo "📁 Creating ALL required directories IMMEDIATELY..."
+mkdir -p /app/logs /var/log/supervisor /root/.ollama/models /app/cache /var/run /tmp
 
-# Ensure all required directories exist
-echo "📁 Creating required directories..."
-mkdir -p /app/logs /var/log/supervisor /root/.ollama/models /app/cache /var/run
+# Force create the directory with explicit permissions
+chmod 755 /app/logs /var/log/supervisor /var/run
+chown root:root /app/logs /var/log/supervisor
 
-# Verify critical directories exist
+# Verify the directory was created successfully
 if [[ ! -d /app/logs ]]; then
-    echo "❌ Failed to create /app/logs directory!"
+    echo "❌ CRITICAL ERROR: Failed to create /app/logs directory!"
+    echo "🔍 Current /app structure:"
+    ls -la /app/ || echo "Cannot list /app"
+    echo "🔍 Current filesystem info:"
+    df -h
     exit 1
 fi
 
-echo "✅ Directory /app/logs exists and is writable: $(test -w /app/logs && echo "YES" || echo "NO")"
+# Test if directory is writable
+if ! touch /app/logs/test.log 2>/dev/null; then
+    echo "❌ CRITICAL ERROR: /app/logs directory is not writable!"
+    echo "🔍 Directory permissions:"
+    ls -ld /app/logs
+    exit 1
+fi
 
-# Create all log files that supervisor expects
-echo "📝 Creating log files..."
+# Clean up test file
+rm -f /app/logs/test.log
+
+echo "✅ Successfully created and verified /app/logs directory"
+
+# Now create all log files that supervisor expects
+echo "📝 Creating ALL log files..."
 touch /app/logs/api.log
 touch /app/logs/redis.err.log /app/logs/redis.out.log
 touch /app/logs/ollama.err.log /app/logs/ollama.out.log
@@ -35,28 +46,23 @@ touch /app/logs/model-init.err.log /app/logs/model-init.out.log
 touch /app/logs/health.err.log /app/logs/health.out.log
 touch /app/logs/supervisord.log
 
-# Set proper permissions
+# Set proper permissions on all files
 chmod 666 /app/logs/*.log 2>/dev/null || echo "⚠️ Some log files may not exist yet"
 chmod 755 /app/scripts/*.py 2>/dev/null || true
 chmod 755 /app/scripts/*.sh 2>/dev/null || true
 
-# Final verification before starting supervisor
-echo "🔍 Final verification:"
-echo "  /app/logs directory exists: $(test -d /app/logs && echo "✅" || echo "❌")"
-echo "  /app/logs is writable: $(test -w /app/logs && echo "✅" || echo "❌")"
-echo "  supervisord.conf exists: $(test -f /etc/supervisor/supervisord.conf && echo "✅" || echo "❌")"
-echo "  ai-search.conf exists: $(test -f /etc/supervisor/conf.d/ai-search.conf && echo "✅" || echo "❌")"
+echo "✅ All log files created successfully"
 
-# Exit if critical paths don't exist
-if [[ ! -d /app/logs ]] || [[ ! -w /app/logs ]]; then
-    echo "❌ Critical error: /app/logs directory is not accessible!"
-    echo "📋 Current directory structure:"
-    ls -la /app/ || echo "Cannot list /app"
-    exit 1
-fi
+# Environment information
+echo "🌍 Environment configured:"
+echo "  - Ollama: ${OLLAMA_BASE_URL:-http://localhost:11434}"
+echo "  - Environment: ${ENVIRONMENT:-production}"
+echo "  - API: 0.0.0.0:8000"
+echo "  - RunPod Pod ID: ${RUNPOD_POD_ID:-unknown}"
+echo "  - RunPod Port: ${RUNPOD_TCP_PORT_8000:-8000}"
 
-# Verify supervisor configuration
-echo "🔧 Checking supervisor configuration..."
+# Verify supervisor configuration - SAFE VERSION
+echo "🔧 Checking supervisor configuration (using system paths)..."
 if [[ ! -f /etc/supervisor/conf.d/ai-search.conf ]]; then
     echo "❌ Supervisor config not found at /etc/supervisor/conf.d/ai-search.conf!"
     echo "📁 Listing contents of /etc/supervisor/conf.d/:"
@@ -65,20 +71,23 @@ if [[ ! -f /etc/supervisor/conf.d/ai-search.conf ]]; then
 fi
 
 echo "✅ Found supervisor config file"
-echo "📄 Config file contents:"
-cat /etc/supervisor/conf.d/ai-search.conf
 
-# Test configuration
+# Test configuration with verbose output
 echo "🧪 Testing supervisor configuration..."
-supervisord -t -c /etc/supervisor/supervisord.conf || {
+if ! supervisord -t -c /etc/supervisor/supervisord.conf 2>&1; then
     echo "❌ Supervisor configuration test failed!"
-    echo "📋 Full error details:"
-    supervisord -t -c /etc/supervisor/supervisord.conf 2>&1
+    echo "📋 Configuration file contents:"
+    echo "=== /etc/supervisor/supervisord.conf ==="
+    cat /etc/supervisor/supervisord.conf
+    echo "=== /etc/supervisor/conf.d/ai-search.conf ==="
+    cat /etc/supervisor/conf.d/ai-search.conf
     exit 1
-}
+fi
 
-echo "✅ Pre-startup checks completed successfully"
+echo "✅ Supervisor configuration test passed"
 
-# Start supervisor
-echo "🎯 Starting services with supervisord..."
+echo "🎯 Starting supervisor in foreground mode..."
+echo "   This will start all services: Redis -> Ollama -> FastAPI -> Model Init"
+
+# Start supervisor - this should work now!
 exec /usr/bin/supervisord -n -c /etc/supervisor/supervisord.conf
