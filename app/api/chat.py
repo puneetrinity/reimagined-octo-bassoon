@@ -151,7 +151,7 @@ async def chat_complete(
     logger.info(
         "Chat completion request started",
         query_id=query_id,
-        user_id=current_user.user_id,
+        user_id=getattr(current_user, 'user_id', current_user.get('user_id', 'unknown')),
         message_length=len(chat_request.message),
         session_id=chat_request.session_id,
         prompt=chat_request.message,
@@ -169,13 +169,13 @@ async def chat_complete(
                 correlation_id=correlation_id,
             )
         session_id = (
-            chat_request.session_id or f"chat_{current_user.user_id}_{int(time.time())}"
+            chat_request.session_id or f"chat_{getattr(current_user, 'user_id', current_user.get('user_id', 'unknown'))}_{int(time.time())}"
         )
         conversation_history = chat_request.user_context.get("conversation_history", [])
         graph_state = GraphState(
             query_id=query_id,
             correlation_id=correlation_id,
-            user_id=current_user.user_id,
+            user_id=getattr(current_user, 'user_id', current_user.get('user_id', 'unknown')),
             session_id=session_id,
             original_query=chat_request.message,
             conversation_history=conversation_history,
@@ -584,7 +584,7 @@ async def chat_stream(
                 return
             session_id = (
                 streaming_request.session_id
-                or f"stream_{current_user.user_id}_{int(time.time())}"
+                or f"stream_{getattr(current_user, 'user_id', current_user.get('user_id', 'unknown'))}_{int(time.time())}"
             )
             conversation_history = []
             for msg in streaming_request.messages[:-1]:
@@ -600,7 +600,7 @@ async def chat_stream(
             graph_state = GraphState(
                 query_id=query_id,
                 correlation_id=correlation_id,
-                user_id=current_user.user_id,
+                user_id=getattr(current_user, 'user_id', current_user.get('user_id', 'unknown')),
                 session_id=session_id,
                 original_query=user_message,
                 conversation_history=conversation_history,
