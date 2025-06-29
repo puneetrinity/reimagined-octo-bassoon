@@ -29,7 +29,13 @@ class Settings(BaseSettings):
     # API Configuration
     api_host: str = "0.0.0.0"
     api_port: int = 8000
-    allowed_origins: list[str] = ["http://localhost:3000", "http://localhost:8000"]
+    allowed_origins: list[str] = Field(
+        default_factory=lambda: (
+            os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:8000").split(",")
+            if os.getenv("ALLOWED_ORIGINS")
+            else ["http://localhost:3000", "http://localhost:8000"]
+        )
+    )
 
     # Ollama Configuration
     ollama_host: str = Field(

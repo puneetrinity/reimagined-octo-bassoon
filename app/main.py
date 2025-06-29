@@ -238,8 +238,8 @@ app = FastAPI(
     title="AI Search System",
     description="Intelligent AI-powered search with Brave Search and ScrapingBee integration",
     version="1.0.0",
-    docs_url="/docs" if settings.environment != "production" else None,
-    redoc_url="/redoc" if settings.environment != "production" else None,
+    docs_url="/docs",  # Always enable docs for development/testing
+    redoc_url="/redoc",  # Always enable redoc
     lifespan=lifespan,
 )
 
