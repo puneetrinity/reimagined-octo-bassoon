@@ -141,9 +141,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         async def init_model_manager():
             model_manager = get_model_manager()
             await model_manager.initialize()
-            await model_manager.start_periodic_refresh()
-            # Wait for phi3:mini to be READY before continuing
-            await wait_for_model_ready(model_manager, "phi3:mini", timeout=180)
+            # Wait for a model to be ready before continuing
             return model_manager
 
         model_manager = await monitor.initialize_component(

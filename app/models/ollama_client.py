@@ -177,7 +177,10 @@ class OllamaClient:
 
         try:
             await self.initialize()
-            response = await self._client.get(f"{self.base_url}/api/tags")
+            response = await self._client.get(
+                f"{self.base_url}/api/tags",
+                timeout=10.0  # Shorter timeout for health checks
+            )
 
             healthy = response.status_code == 200
             self._health_cache = {"healthy": healthy, "last_check": now}
@@ -191,6 +194,15 @@ class OllamaClient:
 
             return healthy
 
+        except (httpx.ConnectError, httpx.TimeoutException, httpx.NetworkError) as e:
+            logger.warning(
+                "Ollama connection issue during health check",
+                error=str(e),
+                error_type=type(e).__name__,
+                correlation_id=correlation_id
+            )
+            self._health_cache = {"healthy": False, "last_check": now}
+            return False
         except Exception as e:
             logger.error(
                 "Ollama health check failed",
@@ -637,6 +649,7 @@ class OllamaClient:
 
         for attempt in range(self.max_retries + 1):
             try:
+                await self.initialize()  # Ensure client is initialized
                 response = await self._client.request(method, url, **kwargs)
 
                 if response.status_code == 200:
@@ -648,6 +661,37 @@ class OllamaClient:
                         request=response.request,
                         response=response
                     )
+
+            except (httpx.ConnectError, httpx.TimeoutException, httpx.NetworkError) as e:
+                last_exception = e
+                
+                if attempt < self.max_retries:
+                    wait_time = self.retry_delay * (2 ** attempt)  # Exponential backoff
+
+                    logger.warning(
+                        "Connection error, retrying",
+                        method=method,
+                        endpoint=endpoint,
+                        attempt=attempt + 1,
+                        max_retries=self.max_retries,
+                        wait_time=wait_time,
+                        error=str(e),
+                        error_type=type(e).__name__,
+                        correlation_id=correlation_id
+                    )
+
+                    await asyncio.sleep(wait_time)
+                else:
+                    logger.error(
+                        "Connection failed after all retries",
+                        method=method,
+                        endpoint=endpoint,
+                        attempts=attempt + 1,
+                        error=str(e),
+                        error_type=type(e).__name__,
+                        correlation_id=correlation_id
+                    )
+                    raise OllamaException(f"Connection to Ollama failed: {e}")
 
             except Exception as e:
                 last_exception = e

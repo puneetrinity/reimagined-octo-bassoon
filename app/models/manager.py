@@ -194,6 +194,10 @@ class ModelManager:
             # Discover available models
             try:
                 await self._discover_available_models()
+            except OllamaException as e:
+                logger.error(f"❌ Ollama connection failed during model discovery: {e}")
+                self.initialization_status = "degraded"
+                # Continue with empty model list for graceful degradation
             except Exception as e:
                 logger.error(f"❌ Failed to discover models: {e}")
                 self.initialization_status = "degraded"
@@ -223,7 +227,11 @@ class ModelManager:
     async def _discover_available_models(self) -> None:
         """Discover and catalog available models from Ollama."""
         try:
-            models_data = await self.ollama_client.list_models()
+            # Try to get models with timeout
+            models_data = await asyncio.wait_for(
+                self.ollama_client.list_models(),
+                timeout=30.0  # 30 second timeout
+            )
             logger.info(f"📚 Found {len(models_data)} available models")
             
             for model_data in models_data:
@@ -358,13 +366,16 @@ class ModelManager:
             # Ensure model is loaded
             await self._ensure_model_loaded(model_name)
             
-            # Generate response
-            result = await self.ollama_client.generate(
-                model_name=model_name,
-                prompt=prompt,
-                max_tokens=max_tokens,
-                temperature=temperature,
-                **kwargs
+            # Generate response with timeout
+            result = await asyncio.wait_for(
+                self.ollama_client.generate(
+                    model_name=model_name,
+                    prompt=prompt,
+                    max_tokens=max_tokens,
+                    temperature=temperature,
+                    **kwargs
+                ),
+                timeout=120.0  # 2 minute timeout for generation
             )
             
             # Update model statistics
@@ -377,6 +388,24 @@ class ModelManager:
             
             return result
             
+        except asyncio.TimeoutError:
+            logger.error(f"Generation timeout for model {model_name}")
+            return ModelResult(
+                success=False,
+                text="",
+                error="Generation timeout",
+                execution_time=time.time() - start_time,
+                model_used=model_name
+            )
+        except OllamaException as e:
+            logger.error(f"Ollama connection error for model {model_name}: {e}")
+            return ModelResult(
+                success=False,
+                text="",
+                error=f"Connection error: {e}",
+                execution_time=time.time() - start_time,
+                model_used=model_name
+            )
         except Exception as e:
             logger.error(f"Generation failed for model {model_name}: {e}")
             # Return error result
