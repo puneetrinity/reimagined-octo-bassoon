@@ -5,9 +5,11 @@ FROM python:3.10-slim
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PYTHONPATH=/app \
-    PORT=8000 \
-    RUNPOD_POD_ID=${RUNPOD_POD_ID:-unknown} \
-    RUNPOD_TCP_PORT_8000=${RUNPOD_TCP_PORT_8000:-8000}
+    PORT=8000
+
+# Set default RunPod environment variables (will be overridden at runtime)
+ENV RUNPOD_POD_ID=unknown \
+    RUNPOD_TCP_PORT_8000=8000
 
 # Set working directory
 WORKDIR /app
