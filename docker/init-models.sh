@@ -8,14 +8,28 @@ echo "Initializing AI models for recruitment workflow..."
 
 # Wait for Ollama to be fully ready
 echo "Ensuring Ollama is ready..."
-for i in {1..30}; do
+for i in {1..60}; do
     if curl -f http://localhost:11434/api/version > /dev/null 2>&1; then
         echo "Ollama is ready"
         break
     fi
-    echo "Waiting for Ollama... ($i/30)"
+    echo "Waiting for Ollama... ($i/60)"
     sleep 5
+    
+    # If it's taking too long, check if Ollama is even running
+    if [ $i -eq 30 ]; then
+        echo "Ollama taking longer than expected, checking status..."
+        ps aux | grep ollama | grep -v grep || echo "No Ollama process found"
+        supervisorctl status ollama || echo "Ollama not in supervisor"
+    fi
 done
+
+# Final check
+if ! curl -f http://localhost:11434/api/version > /dev/null 2>&1; then
+    echo "ERROR: Ollama is not responding after 5 minutes. Cannot initialize models."
+    echo "This is not fatal - models can be pulled manually later."
+    exit 0  # Exit gracefully to not crash the container
+fi
 
 # Function to pull model with retry logic
 pull_model() {

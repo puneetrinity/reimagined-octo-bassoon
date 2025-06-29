@@ -31,6 +31,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3.10-venv \
     redis-server \
     supervisor \
+    jq \
+    netcat \
     && add-apt-repository ppa:deadsnakes/ppa \
     && apt-get update \
     && rm -rf /var/lib/apt/lists/*
@@ -60,22 +62,25 @@ COPY start-app.sh /start-app.sh
 COPY start-app.sh /app/start-app.sh
 
 # Fix line endings and permissions for both locations
-RUN sed -i 's/\r$//' /start-app.sh /app/start-app.sh /app/init-models.sh && \
-    chmod +x /start-app.sh /app/start-app.sh /app/init-models.sh
+RUN sed -i 's/\r$//' /start-app.sh /app/start-app.sh /app/init-models.sh /app/scripts/health-check.sh && \
+    chmod +x /start-app.sh /app/start-app.sh /app/init-models.sh /app/scripts/health-check.sh
 
 # Create symlinks in workspace pointing to /app
 RUN ln -sf /app /workspace/app && \
     ln -sf /app/init-models.sh /workspace/init-models.sh && \
-    ln -sf /app/start-app.sh /workspace/start-app.sh
+    ln -sf /app/start-app.sh /workspace/start-app.sh && \
+    ln -sf /app/scripts/health-check.sh /workspace/health-check.sh
 
 # Debug: verify all files are in place
-RUN ls -la /start-app.sh /app/start-app.sh /app/init-models.sh /app/main.py
+RUN ls -la /start-app.sh /app/start-app.sh /app/init-models.sh /app/main.py /app/scripts/health-check.sh
 
 # Copy configuration
 COPY .env.example .env
 
-# Create directories
-RUN mkdir -p /workspace/logs /workspace/data /workspace/models
+# Create directories with proper permissions
+RUN mkdir -p /workspace/logs /workspace/data /workspace/models /root/.ollama/models && \
+    chmod 755 /workspace/logs /workspace/data /workspace/models /root/.ollama && \
+    chmod 755 /root/.ollama/models
 
 # Expose ports
 EXPOSE 8000 11434 6379 22
