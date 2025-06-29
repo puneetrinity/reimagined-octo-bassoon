@@ -11,8 +11,11 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     CUDA_VISIBLE_DEVICES=0 \
     NVIDIA_VISIBLE_DEVICES=all \
     NVIDIA_DRIVER_CAPABILITIES=compute,utility \
-    PYTHONPATH=/ \
-    PYTHONWARNINGS=ignore::DeprecationWarning
+    PYTHONPATH=/app \
+    PYTHONWARNINGS=ignore::DeprecationWarning \
+    OLLAMA_HOST=0.0.0.0:11434 \
+    OLLAMA_MODELS=/root/.ollama/models \
+    REDIS_URL=redis://localhost:6379
 
 # Set working directory
 WORKDIR /workspace
@@ -52,30 +55,28 @@ RUN curl -fsSL https://ollama.ai/install.sh | sh
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code to /app (not /workspace to avoid volume overwrites)
-COPY app /app
+# Copy application code to /app first
+COPY app /app/app
 COPY scripts /app/scripts
 COPY docker/supervisord.conf /etc/supervisor/supervisord.conf
 COPY docker/supervisor.conf /etc/supervisor/conf.d/ai-search.conf
 COPY docker/init-models.sh /app/init-models.sh
-
-# Copy start-app.sh to both locations explicitly
-COPY start-app.sh /start-app.sh
 COPY start-app.sh /app/start-app.sh
 
-# Fix line endings and permissions for both locations
-RUN sed -i 's/\r$//' /start-app.sh /app/start-app.sh /app/init-models.sh /app/scripts/health-check.sh /app/scripts/supervisord-wrapper.sh && \
-    chmod +x /start-app.sh /app/start-app.sh /app/init-models.sh /app/scripts/health-check.sh /app/scripts/supervisord-wrapper.sh
+# Fix line endings and permissions
+RUN sed -i 's/\r$//' /app/start-app.sh /app/init-models.sh /app/scripts/health-check.sh /app/scripts/supervisord-wrapper.sh /app/scripts/wait-for-services.sh && \
+    chmod +x /app/start-app.sh /app/init-models.sh /app/scripts/health-check.sh /app/scripts/supervisord-wrapper.sh /app/scripts/wait-for-services.sh
 
-# Create symlinks in workspace pointing to /app
-RUN ln -sf /app /workspace/app && \
+# Create symlinks in workspace pointing to /app (after creating directories)
+RUN mkdir -p /workspace && \
+    ln -sf /app /workspace/app && \
     ln -sf /app/init-models.sh /workspace/init-models.sh && \
     ln -sf /app/start-app.sh /workspace/start-app.sh && \
     ln -sf /app/scripts/health-check.sh /workspace/health-check.sh && \
     ln -sf /app/scripts/supervisord-wrapper.sh /workspace/supervisord-wrapper.sh
 
 # Debug: verify all files are in place
-RUN ls -la /start-app.sh /app/start-app.sh /app/init-models.sh /app/main.py /app/scripts/health-check.sh /app/scripts/supervisord-wrapper.sh
+RUN ls -la /app/start-app.sh /app/init-models.sh /app/app/main.py /app/scripts/health-check.sh /app/scripts/supervisord-wrapper.sh /app/scripts/wait-for-services.sh
 
 # Copy configuration
 COPY .env.example .env
@@ -93,5 +94,5 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD curl -f http://localhost:8000/health/live || exit 1
 
 # Start services
-ENTRYPOINT ["/start-app.sh"]
+ENTRYPOINT ["/app/start-app.sh"]
 CMD ["/app/scripts/supervisord-wrapper.sh", "-c", "/etc/supervisor/supervisord.conf", "-n"]

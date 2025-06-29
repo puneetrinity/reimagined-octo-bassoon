@@ -83,15 +83,18 @@ echo "Testing model functionality..."
 test_model() {
     local model=$1
     echo "Testing $model..."
-    if echo "Hello" | ollama run $model "Respond with 'OK' if you can process this." | grep -q "OK"; then
+    # Use a simpler test that doesn't require interactive input
+    if ollama run $model "Say OK" 2>/dev/null | head -1 | grep -q -i "ok"; then
         echo "$model is working"
     else
-        echo "$model test unclear, but loaded"
+        echo "$model loaded but test response unclear"
     fi
 }
 
-# Test key models
-test_model "phi3:mini"
+# Test key models (only if they were successfully pulled)
+if ollama list | grep -q "phi3:mini"; then
+    test_model "phi3:mini"
+fi
 
 echo "Model initialization complete!"
 echo "Memory usage:"
