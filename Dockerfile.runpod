@@ -37,9 +37,9 @@ COPY scripts ./scripts
 COPY docker ./docker
 COPY .env* ./
 
-# Copy RunPod-specific configurations - SAFE VERSION
+# Copy RunPod-specific configurations - FIXED VERSION
 COPY docker/supervisor-runpod-safe.conf /etc/supervisor/conf.d/ai-search.conf
-COPY docker/supervisord-simple.conf /etc/supervisor/supervisord.conf
+COPY docker/supervisord.conf /etc/supervisor/supervisord.conf
 
 # Create directories and set permissions - COMPREHENSIVE
 RUN mkdir -p /var/log/supervisor /app/logs /root/.ollama/models /var/run /tmp && \

@@ -63,6 +63,10 @@ echo "  - RunPod Port: ${RUNPOD_TCP_PORT_8000:-8000}"
 
 # Verify supervisor configuration - SAFE VERSION
 echo "🔧 Checking supervisor configuration (using system paths)..."
+echo "📄 Configuration files in use:"
+echo "   Main config: /etc/supervisor/supervisord.conf"
+echo "   Service config: /etc/supervisor/conf.d/ai-search.conf"
+
 if [[ ! -f /etc/supervisor/conf.d/ai-search.conf ]]; then
     echo "❌ Supervisor config not found at /etc/supervisor/conf.d/ai-search.conf!"
     echo "📁 Listing contents of /etc/supervisor/conf.d/:"
@@ -71,6 +75,17 @@ if [[ ! -f /etc/supervisor/conf.d/ai-search.conf ]]; then
 fi
 
 echo "✅ Found supervisor config file"
+
+# Show the actual configuration being used
+echo "📋 Main supervisord.conf contents:"
+echo "=================================="
+cat /etc/supervisor/supervisord.conf | head -20
+echo "=================================="
+
+echo "📋 Service configuration contents:"
+echo "=================================="
+cat /etc/supervisor/conf.d/ai-search.conf | head -20
+echo "=================================="
 
 # Test configuration with verbose output
 echo "🧪 Testing supervisor configuration..."
