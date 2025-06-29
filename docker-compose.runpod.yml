@@ -35,7 +35,7 @@ services:
       - "8000:8000"    # FastAPI app
       - "11434:11434"  # Ollama
       - "6379:6379"    # Redis
-      - "22:22"        # SSH (RunPod)
+      # SSH removed for security - use RunPod terminal instead
     
     # Volume mounts for persistence
     volumes:

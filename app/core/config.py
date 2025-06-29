@@ -92,7 +92,9 @@ class Settings(BaseSettings):
     log_format: str = "json"  # json or text
 
     # Security
-    jwt_secret_key: str = "dev-secret-key"
+    jwt_secret_key: str = Field(
+        default_factory=lambda: os.getenv("JWT_SECRET_KEY", os.urandom(32).hex())
+    )
     jwt_algorithm: str = "HS256"
     jwt_expiry_hours: int = 24
 
