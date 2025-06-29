@@ -222,11 +222,12 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         yield
     finally:
         logger.info("[LIFESPAN] Shutting down...")
-        # Shutdown ModelManager singleton
+        # Shutdown ModelManager instance
         try:
-            await ModelManager.get_instance().shutdown()
+            if "model_manager" in app_state and app_state["model_manager"]:
+                await app_state["model_manager"].shutdown()
         except Exception as e:
-            logger.warning(f"ModelManager singleton shutdown failed: {e}")
+            logger.warning(f"ModelManager shutdown failed: {e}")
         await shutdown_resources(app_state)
         logger.info("[LIFESPAN] Shutdown complete.")
 
