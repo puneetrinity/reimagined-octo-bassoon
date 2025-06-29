@@ -64,8 +64,9 @@ COPY docker/init-models.sh /app/init-models.sh
 COPY start-app.sh /app/start-app.sh
 
 # Fix line endings and permissions
-RUN sed -i 's/\r$//' /app/start-app.sh /app/init-models.sh /app/scripts/health-check.sh /app/scripts/supervisord-wrapper.sh /app/scripts/wait-for-services.sh && \
-    chmod +x /app/start-app.sh /app/init-models.sh /app/scripts/health-check.sh /app/scripts/supervisord-wrapper.sh /app/scripts/wait-for-services.sh
+RUN sed -i 's/\r$//' /app/start-app.sh /app/init-models.sh /app/scripts/health-check.sh /app/scripts/supervisord-wrapper.sh /app/scripts/wait-for-services.sh /app/scripts/supervisorctl-wrapper.sh && \
+    chmod +x /app/start-app.sh /app/init-models.sh /app/scripts/health-check.sh /app/scripts/supervisord-wrapper.sh /app/scripts/wait-for-services.sh /app/scripts/supervisorctl-wrapper.sh && \
+    ln -sf /app/scripts/supervisorctl-wrapper.sh /usr/local/bin/supervisorctl-clean
 
 # Create symlinks in workspace pointing to /app (after creating directories)
 RUN mkdir -p /workspace && \
