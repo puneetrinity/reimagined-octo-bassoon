@@ -53,9 +53,17 @@
 - **Fix**: Added 60-second TTL cache for model selection results
 - **Impact**: Significant performance improvement for model selection
 
+**10. 🚨 CRITICAL: Supervisor Timing Issue (ROOT CAUSE!)**
+- **Issue**: Supervisor tries to start before startup script creates `/app/logs` directory
+- **Root Cause**: `Dockerfile.production` and `Dockerfile.app-only` copy supervisor config before creating log directories
+- **Fix**: Create `/app/logs` and `/var/log/supervisor` directories in Dockerfile BEFORE copying supervisor config
+- **Impact**: **ELIMINATES** `/app/logs/api.log does not exist` error permanently
+- **Files Fixed**: `Dockerfile.production`, `Dockerfile.app-only` (Dockerfile.runpod already correct)
+
 ### 📊 IMPACT SUMMARY
 
 **Before Fixes:**
+- ❌ `/app/logs/api.log does not exist` supervisor startup failure
 - Authentication system could crash from duplicate functions
 - Memory leaks in health checks and rate limiting
 - Resource exhaustion from poor connection management
@@ -64,6 +72,7 @@
 - Expensive model selection recalculations
 
 **After Fixes:**
+- ✅ **Supervisor starts successfully** - timing issue resolved
 - ✅ Stable authentication system
 - ✅ Memory-efficient health monitoring
 - ✅ Proper resource cleanup
