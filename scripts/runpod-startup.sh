@@ -6,48 +6,55 @@ set -e
 echo "🚀 Starting AI Search System - RunPod Container"
 echo "================================================="
 
+# Run supervisor config verification FIRST
+if [[ -f /app/scripts/verify-supervisor-config.sh ]]; then
+    echo "🔍 Running supervisor config verification..."
+    chmod +x /app/scripts/verify-supervisor-config.sh
+    /app/scripts/verify-supervisor-config.sh
+fi
+
 # FIRST PRIORITY: Create all directories that supervisor needs
 echo "📁 Creating ALL required directories IMMEDIATELY..."
-mkdir -p /app/logs /var/log/supervisor /root/.ollama/models /app/cache /var/run /tmp
+mkdir -p /var/log/supervisor /root/.ollama/models /app/cache /var/run /tmp
 
 # Force create the directory with explicit permissions
-chmod 755 /app/logs /var/log/supervisor /var/run
-chown root:root /app/logs /var/log/supervisor
+chmod 755 /var/log/supervisor /var/run
+chown root:root /var/log/supervisor /var/run
 
 # Verify the directory was created successfully
-if [[ ! -d /app/logs ]]; then
-    echo "❌ CRITICAL ERROR: Failed to create /app/logs directory!"
-    echo "🔍 Current /app structure:"
-    ls -la /app/ || echo "Cannot list /app"
+if [[ ! -d /var/log/supervisor ]]; then
+    echo "❌ CRITICAL ERROR: Failed to create /var/log/supervisor directory!"
+    echo "🔍 Current /var/log structure:"
+    ls -la /var/log/ || echo "Cannot list /var/log"
     echo "🔍 Current filesystem info:"
     df -h
     exit 1
 fi
 
 # Test if directory is writable
-if ! touch /app/logs/test.log 2>/dev/null; then
-    echo "❌ CRITICAL ERROR: /app/logs directory is not writable!"
+if ! touch /var/log/supervisor/test.log 2>/dev/null; then
+    echo "❌ CRITICAL ERROR: /var/log/supervisor directory is not writable!"
     echo "🔍 Directory permissions:"
-    ls -ld /app/logs
+    ls -ld /var/log/supervisor
     exit 1
 fi
 
 # Clean up test file
-rm -f /app/logs/test.log
+rm -f /var/log/supervisor/test.log
 
-echo "✅ Successfully created and verified /app/logs directory"
+echo "✅ Successfully created and verified /var/log/supervisor directory"
 
-# Now create all log files that supervisor expects
-echo "📝 Creating ALL log files..."
-touch /app/logs/api.log
-touch /app/logs/redis.err.log /app/logs/redis.out.log
-touch /app/logs/ollama.err.log /app/logs/ollama.out.log
-touch /app/logs/model-init.err.log /app/logs/model-init.out.log
-touch /app/logs/health.err.log /app/logs/health.out.log
-touch /app/logs/supervisord.log
+# Now create all log files that supervisor expects (using correct paths)
+echo "📝 Creating ALL log files in /var/log/supervisor..."
+touch /var/log/supervisor/supervisord.log
+touch /var/log/supervisor/redis.err.log /var/log/supervisor/redis.out.log
+touch /var/log/supervisor/ollama.err.log /var/log/supervisor/ollama.out.log
+touch /var/log/supervisor/api.err.log /var/log/supervisor/api.out.log
+touch /var/log/supervisor/model-init.err.log /var/log/supervisor/model-init.out.log
+touch /var/log/supervisor/health.err.log /var/log/supervisor/health.out.log
 
 # Set proper permissions on all files
-chmod 666 /app/logs/*.log 2>/dev/null || echo "⚠️ Some log files may not exist yet"
+chmod 666 /var/log/supervisor/*.log 2>/dev/null || echo "⚠️ Some log files may not exist yet"
 chmod 755 /app/scripts/*.py 2>/dev/null || true
 chmod 755 /app/scripts/*.sh 2>/dev/null || true
 
