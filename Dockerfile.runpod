@@ -47,6 +47,7 @@ RUN mkdir -p /var/log/supervisor /app/logs /root/.ollama/models && \
     touch /app/logs/ollama.err.log /app/logs/ollama.out.log && \
     touch /app/logs/model-init.err.log /app/logs/model-init.out.log && \
     touch /app/logs/health.err.log /app/logs/health.out.log && \
+    touch /app/logs/supervisord.log && \
     chmod +x scripts/runpod-startup.sh
 
 # Expose the application port

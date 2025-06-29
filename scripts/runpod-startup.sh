@@ -25,6 +25,7 @@ touch /app/logs/redis.err.log /app/logs/redis.out.log
 touch /app/logs/ollama.err.log /app/logs/ollama.out.log
 touch /app/logs/model-init.err.log /app/logs/model-init.out.log
 touch /app/logs/health.err.log /app/logs/health.out.log
+touch /app/logs/supervisord.log
 
 # Set proper permissions
 chmod 666 /app/logs/*.log
@@ -34,13 +35,22 @@ chmod 755 /app/scripts/*.sh 2>/dev/null || true
 # Verify supervisor configuration
 echo "🔧 Checking supervisor configuration..."
 if [[ ! -f /etc/supervisor/conf.d/ai-search.conf ]]; then
-    echo "❌ Supervisor config not found!"
+    echo "❌ Supervisor config not found at /etc/supervisor/conf.d/ai-search.conf!"
+    echo "📁 Listing contents of /etc/supervisor/conf.d/:"
+    ls -la /etc/supervisor/conf.d/ || echo "Directory not found"
     exit 1
 fi
 
+echo "✅ Found supervisor config file"
+echo "📄 Config file contents:"
+cat /etc/supervisor/conf.d/ai-search.conf
+
 # Test configuration
+echo "🧪 Testing supervisor configuration..."
 supervisord -t -c /etc/supervisor/supervisord.conf || {
     echo "❌ Supervisor configuration test failed!"
+    echo "📋 Full error details:"
+    supervisord -t -c /etc/supervisor/supervisord.conf 2>&1
     exit 1
 }
 
