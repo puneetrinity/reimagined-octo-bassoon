@@ -6,7 +6,7 @@ services:
   ai-search-runpod:
     build:
       context: .
-      dockerfile: Dockerfile.runpod
+      dockerfile: Dockerfile.production
     image: advancellmsearch/ai-search-system:runpod-latest
     container_name: ai-search-runpod
     

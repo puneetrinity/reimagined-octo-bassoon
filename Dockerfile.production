@@ -75,9 +75,6 @@ RUN mkdir -p /workspace && \
     ln -sf /app/scripts/health-check.sh /workspace/health-check.sh && \
     ln -sf /app/scripts/supervisord-wrapper.sh /workspace/supervisord-wrapper.sh
 
-# Debug: verify all files are in place
-RUN ls -la /app/start-app.sh /app/init-models.sh /app/app/main.py /app/scripts/health-check.sh /app/scripts/supervisord-wrapper.sh /app/scripts/wait-for-services.sh
-
 # Copy configuration
 COPY .env.example .env
 

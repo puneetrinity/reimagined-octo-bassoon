@@ -85,7 +85,7 @@ jobs:
         echo "🧪 Testing built image..."
         docker run --rm --entrypoint="" ${{ env.REGISTRY }}/puneetrinity/${{ env.IMAGE_NAME }}:latest python --version
         docker run --rm --entrypoint="" ${{ env.REGISTRY }}/puneetrinity/${{ env.IMAGE_NAME }}:latest ls -la /workspace/app
-        docker run --rm --entrypoint="" ${{ env.REGISTRY }}/puneetrinity/${{ env.IMAGE_NAME }}:latest ls -la /start-app.sh
+        docker run --rm --entrypoint="" ${{ env.REGISTRY }}/puneetrinity/${{ env.IMAGE_NAME }}:latest ls -la /app/start-app.sh
         echo "✅ Image test completed"
         
     - name: Generate deployment info

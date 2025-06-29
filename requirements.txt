@@ -47,9 +47,6 @@ psutil>=5.9.0
 # Web scraping
 beautifulsoup4>=4.12.0
 
-# Development tools
-python-dotenv==1.0.0
-
 # Security
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
@@ -64,6 +61,3 @@ sse-starlette
 
 # System monitoring
 psutil
-
-# ASGI server
-uvicorn
