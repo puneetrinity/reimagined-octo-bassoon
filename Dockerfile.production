@@ -55,6 +55,11 @@ RUN curl -fsSL https://ollama.ai/install.sh | sh
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Create necessary directories first
+RUN mkdir -p /workspace/logs /workspace/data /workspace/models /root/.ollama/models /var/run /etc/supervisor/conf.d && \
+    chmod 755 /workspace/logs /workspace/data /workspace/models /root/.ollama && \
+    chmod 755 /root/.ollama/models /var/run /etc/supervisor /etc/supervisor/conf.d
+
 # Copy application code to /app first
 COPY app /app/app
 COPY scripts /app/scripts
@@ -66,7 +71,12 @@ COPY start-app.sh /app/start-app.sh
 # Fix line endings and permissions
 RUN sed -i 's/\r$//' /app/start-app.sh /app/init-models.sh /app/scripts/health-check.sh /app/scripts/supervisord-wrapper.sh /app/scripts/wait-for-services.sh /app/scripts/supervisorctl-wrapper.sh && \
     chmod +x /app/start-app.sh /app/init-models.sh /app/scripts/health-check.sh /app/scripts/supervisord-wrapper.sh /app/scripts/wait-for-services.sh /app/scripts/supervisorctl-wrapper.sh && \
-    ln -sf /app/scripts/supervisorctl-wrapper.sh /usr/local/bin/supervisorctl-clean
+    ln -sf /app/scripts/supervisorctl-wrapper.sh /usr/local/bin/supervisorctl-clean && \
+    echo "=== Final verification ===" && \
+    ls -la /app/ && \
+    ls -la /etc/supervisor/conf.d/ && \
+    echo "Config file size:" && \
+    wc -l /etc/supervisor/conf.d/ai-search.conf
 
 # Create symlinks in workspace pointing to /app (after creating directories)
 RUN mkdir -p /workspace && \
@@ -79,10 +89,12 @@ RUN mkdir -p /workspace && \
 # Copy configuration
 COPY .env.example .env
 
-# Create directories with proper permissions
-RUN mkdir -p /workspace/logs /workspace/data /workspace/models /root/.ollama/models /var/run /etc/supervisor/conf.d && \
-    chmod 755 /workspace/logs /workspace/data /workspace/models /root/.ollama && \
-    chmod 755 /root/.ollama/models /var/run /etc/supervisor /etc/supervisor/conf.d
+# Verify config files are copied correctly
+RUN echo "=== Verifying supervisor config ===" && \
+    ls -la /etc/supervisor/conf.d/ && \
+    echo "=== Config file contents ===" && \
+    cat /etc/supervisor/conf.d/ai-search.conf && \
+    echo "=== End config verification ==="
 
 # Expose ports
 EXPOSE 8000 11434 6379 22
