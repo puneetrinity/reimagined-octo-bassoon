@@ -39,15 +39,18 @@ COPY .env* ./
 
 # Copy RunPod-specific configurations
 COPY docker/supervisor-runpod.conf /etc/supervisor/conf.d/ai-search.conf
+COPY docker/supervisord.conf /etc/supervisor/supervisord.conf
 
 # Create directories and set permissions
-RUN mkdir -p /var/log/supervisor /app/logs /root/.ollama/models && \
+RUN mkdir -p /var/log/supervisor /app/logs /root/.ollama/models /var/run && \
+    chmod 755 /app/logs /var/log/supervisor && \
     chmod +x scripts/*.py scripts/*.sh 2>/dev/null || true && \
     touch /app/logs/api.log /app/logs/redis.err.log /app/logs/redis.out.log && \
     touch /app/logs/ollama.err.log /app/logs/ollama.out.log && \
     touch /app/logs/model-init.err.log /app/logs/model-init.out.log && \
     touch /app/logs/health.err.log /app/logs/health.out.log && \
     touch /app/logs/supervisord.log && \
+    chmod 666 /app/logs/*.log && \
     chmod +x scripts/runpod-startup.sh
 
 # Expose the application port

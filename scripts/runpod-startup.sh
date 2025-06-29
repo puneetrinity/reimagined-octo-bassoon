@@ -16,7 +16,15 @@ echo "  - RunPod Port: ${RUNPOD_TCP_PORT_8000:-8000}"
 
 # Ensure all required directories exist
 echo "📁 Creating required directories..."
-mkdir -p /app/logs /var/log/supervisor /root/.ollama/models /app/cache
+mkdir -p /app/logs /var/log/supervisor /root/.ollama/models /app/cache /var/run
+
+# Verify critical directories exist
+if [[ ! -d /app/logs ]]; then
+    echo "❌ Failed to create /app/logs directory!"
+    exit 1
+fi
+
+echo "✅ Directory /app/logs exists and is writable: $(test -w /app/logs && echo "YES" || echo "NO")"
 
 # Create all log files that supervisor expects
 echo "📝 Creating log files..."
@@ -28,9 +36,24 @@ touch /app/logs/health.err.log /app/logs/health.out.log
 touch /app/logs/supervisord.log
 
 # Set proper permissions
-chmod 666 /app/logs/*.log
+chmod 666 /app/logs/*.log 2>/dev/null || echo "⚠️ Some log files may not exist yet"
 chmod 755 /app/scripts/*.py 2>/dev/null || true
 chmod 755 /app/scripts/*.sh 2>/dev/null || true
+
+# Final verification before starting supervisor
+echo "🔍 Final verification:"
+echo "  /app/logs directory exists: $(test -d /app/logs && echo "✅" || echo "❌")"
+echo "  /app/logs is writable: $(test -w /app/logs && echo "✅" || echo "❌")"
+echo "  supervisord.conf exists: $(test -f /etc/supervisor/supervisord.conf && echo "✅" || echo "❌")"
+echo "  ai-search.conf exists: $(test -f /etc/supervisor/conf.d/ai-search.conf && echo "✅" || echo "❌")"
+
+# Exit if critical paths don't exist
+if [[ ! -d /app/logs ]] || [[ ! -w /app/logs ]]; then
+    echo "❌ Critical error: /app/logs directory is not accessible!"
+    echo "📋 Current directory structure:"
+    ls -la /app/ || echo "Cannot list /app"
+    exit 1
+fi
 
 # Verify supervisor configuration
 echo "🔧 Checking supervisor configuration..."
