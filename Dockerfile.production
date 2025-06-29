@@ -18,7 +18,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     REDIS_URL=redis://localhost:6379
 
 # Set working directory
-WORKDIR /workspace
+WORKDIR /app
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -56,13 +56,13 @@ COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Create necessary directories first
-RUN mkdir -p /workspace/logs /workspace/data /workspace/models /root/.ollama/models /var/run /etc/supervisor/conf.d && \
-    chmod 755 /workspace/logs /workspace/data /workspace/models /root/.ollama && \
-    chmod 755 /root/.ollama/models /var/run /etc/supervisor /etc/supervisor/conf.d
+RUN mkdir -p /app/logs /app/data /app/models /root/.ollama/models /var/log/supervisor /var/run /etc/supervisor/conf.d && \
+    chmod 755 /app/logs /app/data /app/models /root/.ollama && \
+    chmod 755 /root/.ollama/models /var/log/supervisor /var/run /etc/supervisor /etc/supervisor/conf.d
 
-# Copy application code to /app first
-COPY app /app/app
-COPY scripts /app/scripts
+# Copy application code to /app
+COPY app ./app
+COPY scripts ./scripts
 
 # Create log directories BEFORE copying supervisor config to prevent timing issues
 RUN mkdir -p /app/logs /var/log/supervisor && \

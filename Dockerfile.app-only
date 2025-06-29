@@ -8,7 +8,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     DEBIAN_FRONTEND=noninteractive
 
 # Set working directory
-WORKDIR /workspace
+WORKDIR /app
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -50,7 +50,7 @@ set -e
 echo "🚀 Starting AI Search System (models will be pulled on-demand)..."
 
 # Create log directory
-mkdir -p /workspace/logs
+mkdir -p /app/logs /var/log/supervisor
 
 # Set environment variables
 export REDIS_URL="redis://localhost:6379"
