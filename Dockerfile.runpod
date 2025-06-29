@@ -5,11 +5,9 @@ FROM python:3.10-slim
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PYTHONPATH=/app \
-    PORT=8000
-
-# Set default RunPod environment variables (will be overridden at runtime)
-ENV RUNPOD_POD_ID=unknown \
-    RUNPOD_TCP_PORT_8000=8000
+    PORT=8000 \
+    RUNPOD_POD_ID=${RUNPOD_POD_ID:-unknown} \
+    RUNPOD_TCP_PORT_8000=${RUNPOD_TCP_PORT_8000:-8000}
 
 # Set working directory
 WORKDIR /app
@@ -37,22 +35,12 @@ COPY scripts ./scripts
 COPY docker ./docker
 COPY .env* ./
 
-# Copy RunPod-specific configurations - FORCE CORRECT FILES
-COPY docker/supervisor-runpod.conf /etc/supervisor/conf.d/ai-search.conf
-COPY docker/supervisord.conf /etc/supervisor/supervisord.conf
+# Copy RunPod-specific configurations
+COPY docker/supervisor-runpod.conf /etc/supervisor/conf.d/app.conf
 
-# Create directories and set permissions - COMPREHENSIVE
-RUN mkdir -p /var/log/supervisor /app/logs /root/.ollama/models /var/run /tmp && \
-    chmod 755 /app/logs /var/log/supervisor /var/run && \
-    chown root:root /app/logs /var/log/supervisor /var/run && \
-    chmod +x scripts/*.py scripts/*.sh 2>/dev/null || true && \
-    touch /var/log/supervisor/supervisord.log && \
-    touch /var/log/supervisor/redis.err.log /var/log/supervisor/redis.out.log && \
-    touch /var/log/supervisor/ollama.err.log /var/log/supervisor/ollama.out.log && \
-    touch /var/log/supervisor/api.err.log /var/log/supervisor/api.out.log && \
-    touch /var/log/supervisor/model-init.err.log /var/log/supervisor/model-init.out.log && \
-    chmod 666 /var/log/supervisor/*.log && \
-    chmod +x scripts/runpod-startup.sh
+# Create directories and set permissions
+RUN mkdir -p /var/log/supervisor /app/logs && \
+    chmod +x scripts/*.py scripts/*.sh 2>/dev/null || true
 
 # Expose the application port
 EXPOSE 8000
@@ -61,5 +49,5 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=5 \
     CMD curl --fail http://localhost:8000/health/live || exit 1
 
-# Use the RunPod startup script
-CMD ["/app/scripts/runpod-startup.sh"]
+# Use supervisor to manage services
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/supervisord.conf"]
