@@ -68,14 +68,78 @@ else
     echo "❌ Ollama test failed"
 fi
 
-# Optional: Start Redis if not running (for local development)
-if ! curl -s "$REDIS_URL" > /dev/null 2>&1; then
-    echo "⚠️ Redis not detected at $REDIS_URL"
-    echo "   Starting Redis if available..."
-    if command -v redis-server > /dev/null 2>&1; then
-        nohup redis-server > /tmp/redis.log 2>&1 &
-        sleep 3
+# Start Redis server (required for chat system)
+echo "🗄️ Starting Redis server..."
+
+# Install Redis if not available
+if ! command -v redis-server > /dev/null 2>&1; then
+    echo "📦 Installing Redis server..."
+    apt-get update -qq && apt-get install -y redis-server redis-tools
+fi
+
+# Kill any existing Redis processes
+pkill redis-server 2>/dev/null || true
+sleep 2
+
+# Create Redis configuration for RunPod
+cat > /tmp/redis.conf << 'EOF'
+bind 127.0.0.1
+port 6379
+timeout 0
+save ""
+appendonly no
+protected-mode no
+daemonize no
+EOF
+
+# Start Redis server with custom config
+echo "🚀 Starting Redis with custom configuration..."
+nohup redis-server /tmp/redis.conf > /tmp/redis.log 2>&1 &
+REDIS_PID=$!
+echo "Redis started with PID: $REDIS_PID"
+
+# Wait for Redis to be ready with better validation
+echo "⏳ Waiting for Redis to be ready..."
+REDIS_READY=false
+for i in {1..15}; do
+    if redis-cli -h 127.0.0.1 -p 6379 ping >/dev/null 2>&1; then
+        PING_RESULT=$(redis-cli -h 127.0.0.1 -p 6379 ping 2>/dev/null)
+        if [ "$PING_RESULT" = "PONG" ]; then
+            echo "✅ Redis is ready and responding"
+            REDIS_READY=true
+            break
+        fi
     fi
+    echo "Waiting for Redis... (attempt $i/15)"
+    sleep 2
+done
+
+# Comprehensive Redis testing
+if [ "$REDIS_READY" = "true" ]; then
+    echo "🧪 Testing Redis functionality..."
+    
+    # Test basic operations
+    if redis-cli -h 127.0.0.1 -p 6379 set test_key "test_value" >/dev/null 2>&1; then
+        TEST_VALUE=$(redis-cli -h 127.0.0.1 -p 6379 get test_key 2>/dev/null)
+        if [ "$TEST_VALUE" = "test_value" ]; then
+            echo "✅ Redis read/write test successful"
+            redis-cli -h 127.0.0.1 -p 6379 del test_key >/dev/null 2>&1
+        else
+            echo "❌ Redis read/write test failed"
+        fi
+    else
+        echo "❌ Redis write operation failed"
+    fi
+    
+    # Test connection info
+    echo "📊 Redis connection info:"
+    redis-cli -h 127.0.0.1 -p 6379 info server | grep -E "redis_version|uptime_in_seconds" || true
+else
+    echo "❌ Redis failed to start properly"
+    echo "📋 Redis startup log:"
+    tail -20 /tmp/redis.log 2>/dev/null || echo "No Redis log available"
+    echo "🔍 Process check:"
+    ps aux | grep redis || echo "No Redis processes found"
 fi
 
 # Start FastAPI application
