@@ -3,6 +3,7 @@ Redis Cache Manager - Hot layer for speed-optimized caching
 Handles routing shortcuts, conversation history, and performance hints
 """
 
+import asyncio
 import hashlib
 import json
 from datetime import datetime, timedelta
@@ -117,20 +118,45 @@ class CacheManager:
         self._local_cache: Dict[str, tuple[Any, datetime]] = {}
         self._local_cache_max_size = 1000
     async def initialize(self):
+        """Initialize Redis connection with proper async handling and fallbacks."""
         try:
-            self.redis_pool = redis.ConnectionPool.from_url(
+            import redis.asyncio as redis_async
+            
+            # Create async Redis connection
+            self.redis = redis_async.from_url(
                 self.redis_url,
                 max_connections=self.max_connections,
                 decode_responses=True,
-                socket_connect_timeout=5,
-                socket_timeout=5,
+                socket_connect_timeout=10,
+                socket_timeout=10,
+                retry_on_timeout=True,
+                health_check_interval=30
             )
-            self.redis = redis.Redis(connection_pool=self.redis_pool)
-            await self.redis.ping()
-            logger.info("Redis cache manager initialized", url=self.redis_url)
+            
+            # Test connection with timeout
+            await asyncio.wait_for(self.redis.ping(), timeout=10.0)
+            
+            logger.info(f"✅ Redis cache manager initialized successfully: {self.redis_url}")
+            return True
+            
+        except asyncio.TimeoutError:
+            logger.error("❌ Redis connection timed out")
+            self._setup_fallback()
+            return False
         except Exception as e:
-            logger.error(f"Failed to initialize Redis: {e}")
-            logger.warning("Falling back to local cache only")
+            logger.error(f"❌ Failed to initialize Redis: {e}")
+            self._setup_fallback()
+            return False
+    
+    def _setup_fallback(self):
+        """Setup local cache fallback when Redis is unavailable."""
+        logger.warning("⚠️ Redis unavailable - using local cache fallback")
+        self.redis = None
+        self.redis_pool = None
+        # Ensure local cache is ready
+        if not hasattr(self, '_local_cache'):
+            self._local_cache = {}
+        logger.info("📦 Local cache fallback activated")
     async def cleanup(self):
         if self.redis:
             await self.redis.aclose()

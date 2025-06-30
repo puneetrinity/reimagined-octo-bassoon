@@ -33,12 +33,32 @@ def get_model_manager(request: Any = None) -> ModelManager:
     
     # Fallback: create new instance (for startup or testing)
     import os
+    import asyncio
+    from app.core.logging import get_logger
+    
+    logger = get_logger("dependencies")
+    logger.warning("⚠️ Using fallback ModelManager - singleton not set!")
+    
     settings = get_settings()
-    # Force external Ollama URL for RunPod deployment
-    ollama_host = os.getenv("OLLAMA_HOST", settings.ollama_host)
-    if "localhost" in ollama_host and "runpod.net" not in ollama_host:
-        ollama_host = "https://l4vja98so6wvh9-11434.proxy.runpod.net"
-    return ModelManager(ollama_host=ollama_host)
+    # Use consistent Ollama host configuration
+    ollama_host = settings.ollama_host
+    
+    fallback_manager = ModelManager(ollama_host=ollama_host)
+    
+    # Try to initialize synchronously if possible
+    try:
+        # Check if we're in an async context
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            # Schedule initialization for later
+            asyncio.create_task(fallback_manager.initialize())
+        else:
+            # Run initialization synchronously
+            asyncio.run(fallback_manager.initialize())
+    except Exception as e:
+        logger.warning(f"Fallback ModelManager initialization failed: {e}")
+    
+    return fallback_manager
 
 
 def get_cache_manager() -> CacheManager:
@@ -48,7 +68,25 @@ def get_cache_manager() -> CacheManager:
         return _initialized_cache_manager
     
     # Fallback: create new instance (for startup or testing)
+    import asyncio
+    from app.core.logging import get_logger
+    
+    logger = get_logger("dependencies")
+    logger.warning("⚠️ Using fallback CacheManager - singleton not set!")
+    
     settings = get_settings()
-    return CacheManager(
+    fallback_cache = CacheManager(
         redis_url=settings.redis_url, max_connections=settings.redis_max_connections
     )
+    
+    # Try to initialize if possible
+    try:
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            asyncio.create_task(fallback_cache.initialize())
+        else:
+            asyncio.run(fallback_cache.initialize())
+    except Exception as e:
+        logger.warning(f"Fallback CacheManager initialization failed: {e}")
+    
+    return fallback_cache

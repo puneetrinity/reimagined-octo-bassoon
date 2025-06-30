@@ -272,22 +272,31 @@ class ModelManager:
 
     def select_optimal_model(
         self,
-        task_type: TaskType,
-        quality_requirement: QualityLevel = QualityLevel.BALANCED,
+        task_type,  # Can be TaskType enum or string
+        quality_requirement = None,  # Can be QualityLevel enum or string
         context: Optional[Dict[str, Any]] = None
     ) -> str:
         """
         Select the optimal model for a given task and quality requirement.
         
         Args:
-            task_type: Type of task to perform
-            quality_requirement: Required quality level
+            task_type: Type of task to perform (TaskType enum or string)
+            quality_requirement: Required quality level (QualityLevel enum or string)
             context: Additional context for selection (user tier, budget, etc.)
             
         Returns:
             str: Selected model name
         """
         context = context or {}
+        
+        # Convert string parameters to enums if needed
+        if isinstance(task_type, str):
+            task_type = getattr(TaskType, task_type.upper(), TaskType.CONVERSATION)
+        
+        if quality_requirement is None:
+            quality_requirement = QualityLevel.BALANCED
+        elif isinstance(quality_requirement, str):
+            quality_requirement = getattr(QualityLevel, quality_requirement.upper(), QualityLevel.BALANCED)
         
         # Create cache key
         cache_key = f"{task_type.value if hasattr(task_type, 'value') else str(task_type)}:{quality_requirement.value if hasattr(quality_requirement, 'value') else str(quality_requirement)}"
@@ -362,20 +371,24 @@ class ModelManager:
 
     async def generate(
         self,
-        model_name: str,
         prompt: str,
+        model_name: Optional[str] = None,
+        task_type: Optional[str] = None,
         max_tokens: int = 1000,
         temperature: float = 0.7,
+        timeout: Optional[float] = None,
         **kwargs
     ) -> ModelResult:
         """
-        Generate text using the specified model.
+        Generate text using the specified model or auto-select based on task type.
         
         Args:
-            model_name: Name of the model to use
             prompt: Input prompt
+            model_name: Name of the model to use (if not provided, will auto-select based on task_type)
+            task_type: Task type for model selection (conversation, qa_and_summary, etc.)
             max_tokens: Maximum tokens to generate
             temperature: Sampling temperature
+            timeout: Custom timeout for generation
             **kwargs: Additional generation parameters
             
         Returns:
@@ -385,6 +398,22 @@ class ModelManager:
             await self.initialize()
         
         start_time = time.time()
+        
+        # Auto-select model if not provided
+        if not model_name:
+            if task_type:
+                # Convert string task_type to TaskType enum
+                task_type_enum = getattr(TaskType, task_type.upper(), TaskType.CONVERSATION)
+                model_name = self.select_optimal_model(
+                    task_type_enum, 
+                    QualityLevel.BALANCED
+                )
+            else:
+                # Default fallback model
+                model_name = "phi3:mini"
+        
+        # Set timeout 
+        generation_timeout = timeout if timeout else 120.0
         
         try:
             # Ensure model is loaded
@@ -399,7 +428,7 @@ class ModelManager:
                     temperature=temperature,
                     **kwargs
                 ),
-                timeout=120.0  # 2 minute timeout for generation
+                timeout=generation_timeout
             )
             
             # Update model statistics

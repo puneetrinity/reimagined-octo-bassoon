@@ -139,9 +139,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         # Model Manager (singleton)
 
         async def init_model_manager():
-            import os
-            # Force the correct Ollama URL for RunPod
-            ollama_host = os.getenv("OLLAMA_HOST", "https://l4vja98so6wvh9-11434.proxy.runpod.net")
+            # Use standardized Ollama host configuration
+            ollama_host = settings.ollama_host
             logger.info(f"🤖 Initializing ModelManager with Ollama: {ollama_host}")
             model_manager = ModelManager(ollama_host=ollama_host)
             await model_manager.initialize()

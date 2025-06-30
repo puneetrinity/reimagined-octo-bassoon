@@ -12,6 +12,24 @@ from pydantic import Field
 from pydantic_settings import BaseSettings
 
 
+def get_ollama_host() -> str:
+    """Get the correct Ollama host URL with RunPod deployment support."""
+    # Check environment variable first
+    ollama_host = os.getenv("OLLAMA_HOST")
+    
+    if ollama_host:
+        # If it's set, use it as-is
+        return ollama_host
+    
+    # Check if we're in RunPod environment
+    if os.getenv("RUNPOD_POD_ID") or "runpod" in os.getenv("HOSTNAME", "").lower():
+        # Use external Ollama endpoint for RunPod
+        return "https://l4vja98so6wvh9-11434.proxy.runpod.net"
+    
+    # Default to localhost for local development
+    return "http://localhost:11434"
+
+
 class Settings(BaseSettings):
     """Application settings with environment variable support
     Provider configs (API keys, timeouts, etc) are loaded from environment variables or .env file.
@@ -39,7 +57,7 @@ class Settings(BaseSettings):
 
     # Ollama Configuration
     ollama_host: str = Field(
-        default_factory=lambda: os.getenv("OLLAMA_HOST", "http://localhost:11434")
+        default_factory=lambda: get_ollama_host()
     )
     ollama_timeout: int = 60
     ollama_max_retries: int = 3
