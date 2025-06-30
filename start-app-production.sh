@@ -44,15 +44,29 @@ wait_for_service() {
 }
 
 # Check if external Ollama is available
-echo "🤖 Checking external Ollama server..."
+echo "🤖 Checking external Ollama server at $OLLAMA_HOST..."
 if ! wait_for_service "Ollama" "$OLLAMA_HOST/api/version" 30; then
     echo "❌ External Ollama server not available at $OLLAMA_HOST"
-    exit 1
+    echo "⚠️  Falling back to localhost Ollama..."
+    export OLLAMA_HOST="http://localhost:11434"
 fi
 
-echo "✅ External Ollama server is ready"
+echo "✅ Ollama server is ready at $OLLAMA_HOST"
 echo "📋 Available models:"
 curl -s "$OLLAMA_HOST/api/tags" | python3 -m json.tool 2>/dev/null || echo "Could not list models"
+
+# Verify Ollama is working with a test generation
+echo "🧪 Testing Ollama with phi3:mini..."
+TEST_RESULT=$(curl -s -X POST "$OLLAMA_HOST/api/generate" \
+  -H "Content-Type: application/json" \
+  -d '{"model": "phi3:mini", "prompt": "test", "stream": false}' \
+  --max-time 15 | grep -o '"response":"[^"]*"' | head -1)
+
+if [ -n "$TEST_RESULT" ]; then
+    echo "✅ Ollama test successful: $TEST_RESULT"
+else
+    echo "❌ Ollama test failed"
+fi
 
 # Optional: Start Redis if not running (for local development)
 if ! curl -s "$REDIS_URL" > /dev/null 2>&1; then
@@ -73,6 +87,11 @@ mkdir -p logs data models
 
 # Start the application
 echo "🎯 Starting AI Search System API server..."
+echo "🔧 Final environment check:"
+echo "   OLLAMA_HOST: $OLLAMA_HOST"
+echo "   REDIS_URL: $REDIS_URL"
+echo "   API_HOST: $API_HOST:$API_PORT"
+
 exec uvicorn app.main:app \
     --host "$API_HOST" \
     --port "$API_PORT" \
