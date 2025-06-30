@@ -43,33 +43,16 @@ wait_for_service() {
     return 1
 }
 
-# Start Ollama in background
-echo "🤖 Starting Ollama server..."
-nohup ollama serve > /tmp/ollama.log 2>&1 &
-OLLAMA_PID=$!
-echo "Ollama started with PID: $OLLAMA_PID"
-
-# Wait for Ollama to be ready
-if ! wait_for_service "Ollama" "http://localhost:11434/api/version" 60; then
-    echo "❌ Failed to start Ollama"
+# Check if external Ollama is available
+echo "🤖 Checking external Ollama server..."
+if ! wait_for_service "Ollama" "$OLLAMA_HOST/api/version" 30; then
+    echo "❌ External Ollama server not available at $OLLAMA_HOST"
     exit 1
 fi
 
-# Pull essential models
-echo "📥 Ensuring essential models are available..."
-MODELS_TO_PULL=("phi3:mini" "tinyllama:latest")
-
-for model in "${MODELS_TO_PULL[@]}"; do
-    if ! ollama list | grep -q "$model"; then
-        echo "📥 Pulling $model..."
-        ollama pull "$model" || echo "⚠️ Failed to pull $model (will retry later)"
-    else
-        echo "✅ $model already available"
-    fi
-done
-
-echo "✅ Model initialization complete"
-ollama list
+echo "✅ External Ollama server is ready"
+echo "📋 Available models:"
+curl -s "$OLLAMA_HOST/api/tags" | python3 -m json.tool 2>/dev/null || echo "Could not list models"
 
 # Optional: Start Redis if not running (for local development)
 if ! curl -s "$REDIS_URL" > /dev/null 2>&1; then

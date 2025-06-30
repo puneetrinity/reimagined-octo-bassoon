@@ -7,7 +7,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONPATH=/app \
     DEBIAN_FRONTEND=noninteractive \
     CUDA_VISIBLE_DEVICES=0 \
-    OLLAMA_HOST=http://localhost:11434
+    OLLAMA_HOST=https://l4vja98so6wvh9-11434.proxy.runpod.net
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
@@ -42,7 +42,7 @@ RUN cat > .env << 'EOF'
 ENVIRONMENT=production
 API_HOST=0.0.0.0
 API_PORT=8000
-OLLAMA_HOST=http://localhost:11434
+OLLAMA_HOST=https://l4vja98so6wvh9-11434.proxy.runpod.net
 REDIS_URL=redis://localhost:6379
 DEFAULT_MODEL=phi3:mini
 FALLBACK_MODEL=tinyllama:latest
