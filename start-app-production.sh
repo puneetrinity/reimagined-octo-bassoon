@@ -77,6 +77,10 @@ if ! command -v redis-server > /dev/null 2>&1; then
     apt-get update -qq && apt-get install -y redis-server redis-tools
 fi
 
+# Optimize memory settings for Redis (suppress kernel warnings)
+echo "🔧 Optimizing system memory settings for Redis..."
+sysctl vm.overcommit_memory=1 2>/dev/null || echo "⚠️ Could not set vm.overcommit_memory (non-critical)"
+
 # Kill any existing Redis processes
 pkill redis-server 2>/dev/null || true
 sleep 2
