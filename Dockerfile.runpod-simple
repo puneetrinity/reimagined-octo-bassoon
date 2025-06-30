@@ -7,7 +7,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONPATH=/app \
     DEBIAN_FRONTEND=noninteractive \
     CUDA_VISIBLE_DEVICES=0 \
-    OLLAMA_HOST=0.0.0.0:11434
+    OLLAMA_HOST=http://localhost:11434
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
@@ -48,6 +48,7 @@ DEFAULT_MODEL=phi3:mini
 FALLBACK_MODEL=tinyllama:latest
 CUDA_VISIBLE_DEVICES=0
 LOG_LEVEL=INFO
+AI_API_KEY=xnm7aguwdum6ka655jnu
 EOF
 
 # Create necessary directories and set permissions
