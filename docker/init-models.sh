@@ -109,4 +109,5 @@ echo "- Report Generation: phi3:mini"
 echo "- Fallback: tinyllama:latest"
 
 # Mark initialization as complete
+mkdir -p /workspace/models
 touch /workspace/models/.initialized
