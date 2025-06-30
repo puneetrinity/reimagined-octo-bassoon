@@ -8,15 +8,27 @@ echo "=============================================="
 # Set environment variables
 export PYTHONPATH="/app"
 export REDIS_URL="${REDIS_URL:-redis://localhost:6379}"
-export OLLAMA_HOST="${OLLAMA_HOST:-http://localhost:11434}"
+# Don't override OLLAMA_HOST - let config.py auto-detect RunPod environment
 export ENVIRONMENT="${ENVIRONMENT:-production}"
 export API_HOST="${API_HOST:-0.0.0.0}"
 export API_PORT="${API_PORT:-8000}"
 export CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES:-0}"
 
+# Get the actual Ollama host that will be used (after auto-detection)
+if [ -z "$OLLAMA_HOST" ]; then
+    # Check if we're in RunPod environment for startup script only
+    if [ -n "$RUNPOD_POD_ID" ] || [[ "$HOSTNAME" == *"runpod"* ]]; then
+        DETECTED_OLLAMA_HOST="https://l4vja98so6wvh9-11434.proxy.runpod.net"
+    else
+        DETECTED_OLLAMA_HOST="http://localhost:11434"
+    fi
+else
+    DETECTED_OLLAMA_HOST="$OLLAMA_HOST"
+fi
+
 echo "Environment configured:"
 echo "  - Redis: $REDIS_URL"
-echo "  - Ollama: $OLLAMA_HOST"
+echo "  - Ollama: $DETECTED_OLLAMA_HOST (auto-detected)"
 echo "  - Environment: $ENVIRONMENT"
 echo "  - API: $API_HOST:$API_PORT"
 echo "  - CUDA: $CUDA_VISIBLE_DEVICES"
@@ -44,20 +56,19 @@ wait_for_service() {
 }
 
 # Check if external Ollama is available
-echo "🤖 Checking external Ollama server at $OLLAMA_HOST..."
-if ! wait_for_service "Ollama" "$OLLAMA_HOST/api/version" 30; then
-    echo "❌ External Ollama server not available at $OLLAMA_HOST"
-    echo "⚠️  Falling back to localhost Ollama..."
-    export OLLAMA_HOST="http://localhost:11434"
+echo "🤖 Checking Ollama server at $DETECTED_OLLAMA_HOST..."
+if ! wait_for_service "Ollama" "$DETECTED_OLLAMA_HOST/api/version" 30; then
+    echo "❌ Ollama server not available at $DETECTED_OLLAMA_HOST"
+    exit 1
 fi
 
-echo "✅ Ollama server is ready at $OLLAMA_HOST"
+echo "✅ Ollama server is ready at $DETECTED_OLLAMA_HOST"
 echo "📋 Available models:"
-curl -s "$OLLAMA_HOST/api/tags" | python3 -m json.tool 2>/dev/null || echo "Could not list models"
+curl -s "$DETECTED_OLLAMA_HOST/api/tags" | python3 -m json.tool 2>/dev/null || echo "Could not list models"
 
 # Verify Ollama is working with a test generation
 echo "🧪 Testing Ollama with phi3:mini..."
-TEST_RESULT=$(curl -s -X POST "$OLLAMA_HOST/api/generate" \
+TEST_RESULT=$(curl -s -X POST "$DETECTED_OLLAMA_HOST/api/generate" \
   -H "Content-Type: application/json" \
   -d '{"model": "phi3:mini", "prompt": "test", "stream": false}' \
   --max-time 15 | grep -o '"response":"[^"]*"' | head -1)
@@ -156,7 +167,7 @@ mkdir -p logs data models
 # Start the application
 echo "🎯 Starting AI Search System API server..."
 echo "🔧 Final environment check:"
-echo "   OLLAMA_HOST: $OLLAMA_HOST"
+echo "   OLLAMA_HOST: $DETECTED_OLLAMA_HOST (auto-detected)"
 echo "   REDIS_URL: $REDIS_URL"
 echo "   API_HOST: $API_HOST:$API_PORT"
 
