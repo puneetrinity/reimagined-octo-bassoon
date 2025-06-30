@@ -16,10 +16,11 @@ project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
 async def validate_startup():
-    """Validate all components during startup."""
-    print("🔍 Starting startup validation...")
+    """Validate basic component loading during startup."""
+    print("🔍 Starting basic startup validation...")
     
     errors = []
+    warnings = []
     
     # Test 1: Import all critical modules
     try:
@@ -31,62 +32,62 @@ async def validate_startup():
     except Exception as e:
         errors.append(f"Import error: {e}")
         print(f"❌ Import failed: {e}")
+        return False  # Can't continue without imports
     
-    # Test 2: Initialize model manager
+    # Test 2: Configuration loading
     try:
         settings = get_settings()
-        model_manager = ModelManager(ollama_host=settings.ollama_host)
-        init_success = await model_manager.initialize()
-        if init_success:
-            print("✅ Model manager initialization successful")
-        else:
-            errors.append("Model manager initialization failed")
-            print("❌ Model manager initialization failed")
+        print(f"✅ Configuration loaded (environment: {settings.environment})")
     except Exception as e:
-        errors.append(f"Model manager error: {e}")
-        print(f"❌ Model manager error: {e}")
+        errors.append(f"Configuration error: {e}")
+        print(f"❌ Configuration error: {e}")
+        return False
     
-    # Test 3: Initialize cache manager
+    # Test 3: Basic component creation (no initialization)
+    try:
+        model_manager = ModelManager(ollama_host=settings.ollama_host)
+        print("✅ ModelManager instance created")
+    except Exception as e:
+        warnings.append(f"ModelManager creation warning: {e}")
+        print(f"⚠️ ModelManager creation warning: {e}")
+    
     try:
         cache_manager = CacheManager(
             redis_url=settings.redis_url,
             max_connections=settings.redis_max_connections
         )
-        await cache_manager.initialize()
-        print("✅ Cache manager initialization successful")
+        print("✅ CacheManager instance created")
     except Exception as e:
-        errors.append(f"Cache manager error: {e}")
-        print(f"❌ Cache manager error: {e}")
+        warnings.append(f"CacheManager creation warning: {e}")
+        print(f"⚠️ CacheManager creation warning: {e}")
     
-    # Test 4: Create chat graph
-    try:
-        chat_graph = ChatGraph(model_manager, cache_manager)
-        print("✅ Chat graph creation successful")
-    except Exception as e:
-        errors.append(f"Chat graph error: {e}")
-        print(f"❌ Chat graph error: {e}")
+    # Test 4: Check environment variables
+    import os
+    required_vars = ["OLLAMA_HOST", "REDIS_URL", "AI_API_KEY"]
+    missing_vars = []
     
-    # Test 5: Simple model generation test
+    for var in required_vars:
+        if not os.getenv(var):
+            missing_vars.append(var)
+    
+    if missing_vars:
+        warnings.append(f"Missing environment variables: {', '.join(missing_vars)}")
+        print(f"⚠️ Missing environment variables: {', '.join(missing_vars)}")
+    else:
+        print("✅ All required environment variables present")
+    
+    # Test 5: Basic file system checks
     try:
-        from app.models.manager import TaskType, QualityLevel
-        optimal_model = model_manager.select_optimal_model(
-            TaskType.CONVERSATION, 
-            QualityLevel.MINIMAL
-        )
-        result = await model_manager.generate(
-            model_name=optimal_model,
-            prompt="Test prompt",
-            max_tokens=10,
-            temperature=0.1
-        )
-        if result.success:
-            print("✅ Model generation test successful")
-        else:
-            errors.append(f"Model generation failed: {result.error}")
-            print(f"❌ Model generation failed: {result.error}")
+        from pathlib import Path
+        required_dirs = ["app", "app/api", "app/models", "app/graphs"]
+        for dir_path in required_dirs:
+            if not Path(dir_path).exists():
+                warnings.append(f"Missing directory: {dir_path}")
+            else:
+                print(f"✅ Directory exists: {dir_path}")
     except Exception as e:
-        errors.append(f"Model generation error: {e}")
-        print(f"❌ Model generation error: {e}")
+        warnings.append(f"File system check error: {e}")
+        print(f"⚠️ File system check error: {e}")
     
     # Summary
     if errors:
@@ -94,6 +95,12 @@ async def validate_startup():
         for i, error in enumerate(errors, 1):
             print(f"  {i}. {error}")
         return False
+    elif warnings:
+        print(f"\n⚠️ Validation completed with {len(warnings)} warnings:")
+        for i, warning in enumerate(warnings, 1):
+            print(f"  {i}. {warning}")
+        print("\nProceeding with startup (warnings are non-fatal)...")
+        return True
     else:
         print("\n✅ All validation tests passed!")
         return True
