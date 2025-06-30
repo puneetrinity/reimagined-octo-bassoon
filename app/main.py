@@ -416,8 +416,8 @@ async def health_check():
 
         # Calculate uptime
         uptime = None
-        if "startup_time" in app_state:
-            uptime = time.time() - app_state["startup_time"]
+        if "startup_time" in actual_app_state:
+            uptime = time.time() - actual_app_state["startup_time"]
 
         return HealthStatus(
             status="healthy" if overall_healthy else "degraded",
@@ -579,11 +579,14 @@ async def get_metrics():
             "correlation_id": correlation_id,
             "version": "1.0.0",
         }
-        startup_time = app_state.get("startup_time")
+        # Get actual app state
+        actual_app_state = getattr(app.state, 'app_state', {})
+        
+        startup_time = actual_app_state.get("startup_time")
         if startup_time and isinstance(startup_time, (int, float)):
             metrics["uptime_seconds"] = time.time() - startup_time
         components = {}
-        for component_name, component in app_state.items():
+        for component_name, component in actual_app_state.items():
             if component_name == "startup_time":
                 continue
             try:
@@ -594,7 +597,7 @@ async def get_metrics():
                     "error": str(e),
                 }
         metrics["components"] = components
-        api_status = app_state.get("api_key_status", {})
+        api_status = actual_app_state.get("api_key_status", {})
         if isinstance(api_status, dict):
             metrics["api_keys"] = {
                 k: v
@@ -851,7 +854,8 @@ if settings.environment != "production":
     async def debug_test_chat(message: str = "Hello, this is a test"):
         """Debug endpoint to test chat functionality."""
         try:
-            if "chat_graph" not in app_state:
+            actual_app_state = getattr(app.state, 'app_state', {})
+            if "chat_graph" not in actual_app_state:
                 return {"error": "Chat graph not initialized"}
 
             from app.graphs.base import GraphState
@@ -860,7 +864,7 @@ if settings.environment != "production":
                 original_query=message, session_id="debug_test", user_id="debug_user"
             )
 
-            result = await app_state["chat_graph"].execute(test_state)
+            result = await actual_app_state["chat_graph"].execute(test_state)
 
             return {
                 "success": True,
@@ -883,15 +887,16 @@ if settings.environment != "production":
     async def debug_test_search(query: str = "latest AI developments"):
         """Debug endpoint to test search functionality."""
         try:
-            if "search_graph" not in app_state:
+            actual_app_state = getattr(app.state, 'app_state', {})
+            if "search_graph" not in actual_app_state:
                 return {"error": "Search graph not initialized"}
 
             from app.graphs.search_graph import execute_search
 
             result = await execute_search(
                 query=query,
-                model_manager=app_state["model_manager"],
-                cache_manager=app_state["cache_manager"],
+                model_manager=actual_app_state["model_manager"],
+                cache_manager=actual_app_state["cache_manager"],
                 budget=2.0,
                 quality="balanced",
                 max_results=5,

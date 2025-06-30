@@ -48,35 +48,13 @@ logger = get_logger("api.chat")
 settings = get_settings()
 
 
-# Global instances (will be initialized in main.py)
-model_manager: Optional[ModelManager] = None
-cache_manager: Optional[CacheManager] = None
-chat_graph: Optional[ChatGraph] = None
+# Note: Components are accessed from app.state.app_state, not global variables
 model_router = ModelRouter()  # Initialize model router
 
 # CORRECTED REQUEST MODELS WITH PROPER WRAPPERS
 
 
-async def initialize_chat_dependencies():
-    global model_manager, cache_manager, chat_graph
-    if not model_manager:
-        from app.dependencies import get_model_manager
-        model_manager = get_model_manager()
-        await model_manager.initialize()
-        # Remove diagnostic logs for production
-        # logger.info("ModelManager initialized for chat API")
-    if not cache_manager:
-        try:
-            from app.dependencies import get_cache_manager
-            cache_manager = get_cache_manager()
-            await cache_manager.initialize()
-            # logger.info("CacheManager initialized for chat API")
-        except Exception:
-            # logger.warning("CacheManager initialization failed")
-            cache_manager = None
-    if not chat_graph:
-        chat_graph = ChatGraph(model_manager, cache_manager)
-        # logger.info("ChatGraph initialized for chat API")
+# Note: initialize_chat_dependencies() removed - components now accessed from app.state
 
 
 @router.get("/health")
@@ -193,19 +171,17 @@ async def chat_complete(
                 "force_local_only": chat_request.force_local_only,
             },
         )
-        # Ensure chat_graph is initialized before handling chat requests
-        global chat_graph, model_manager, cache_manager
-        if chat_graph is None:
-            if model_manager is None:
-                # Use dependency injection to get the properly initialized instance
-                from app.dependencies import get_model_manager
-                model_manager = get_model_manager()
-            if cache_manager is None:
-                # Use dependency injection to get the properly initialized instance
-                from app.dependencies import get_cache_manager
-                cache_manager = get_cache_manager()
-            chat_graph = ChatGraph(model_manager, cache_manager)
-        chat_graph_instance = chat_graph
+        # Get initialized components from app state (NOT dependency injection)
+        app_state = getattr(request.app.state, 'app_state', {})
+        
+        chat_graph_instance = app_state.get('chat_graph')
+        if chat_graph_instance is None:
+            logger.error("ChatGraph not found in app state - using fallback initialization")
+            # Fallback only if app state is empty
+            from app.dependencies import get_model_manager, get_cache_manager
+            model_manager = get_model_manager()
+            cache_manager = get_cache_manager()
+            chat_graph_instance = ChatGraph(model_manager, cache_manager)
         if chat_graph_instance is None:
             return create_error_response(
                 message="Chat graph is not initialized.",
@@ -508,10 +484,14 @@ async def chat_stream(
     correlation_id = str(uuid.uuid4())
     set_correlation_id(correlation_id)
     query_id = str(uuid.uuid4())
-    await initialize_chat_dependencies()
+    
+    # Get components from app state
+    app_state = getattr(req.app.state, 'app_state', {})
+    chat_graph = app_state.get('chat_graph')
+    model_manager = app_state.get('model_manager')  
+    cache_manager = app_state.get('cache_manager')
 
     async def generate_safe_stream():
-        global chat_graph, model_manager, cache_manager
         
         # Get user message first for caching and routing
         user_message = ""
@@ -796,15 +776,11 @@ def set_dependencies(
     fake_model_manager=None, fake_cache_manager=None, fake_chat_graph=None
 ):
     """
-    Override global dependencies for testing. Injects fake services for model_manager, cache_manager, and chat_graph.
+    Note: This function is deprecated. Components are now accessed from app.state.
+    For testing, mock the app.state.app_state instead.
     """
-    global model_manager, cache_manager, chat_graph
-    if fake_model_manager is not None:
-        model_manager = fake_model_manager
-    if fake_cache_manager is not None:
-        cache_manager = fake_cache_manager
-    if fake_chat_graph is not None:
-        chat_graph = fake_chat_graph
+    logger.warning("set_dependencies() is deprecated - use app.state.app_state for testing")
+    pass
 
 
 async def _generate_fallback_response(query: str, chat_graph, model_manager) -> Optional[str]:
