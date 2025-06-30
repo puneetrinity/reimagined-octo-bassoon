@@ -819,8 +819,8 @@ async def _generate_fallback_response(query: str, chat_graph, model_manager) -> 
                 max_tokens=200,
                 timeout=10
             )
-            if result and hasattr(result, 'content') and result.content:
-                return result.content.strip()
+            if result and hasattr(result, 'text') and result.text:
+                return result.text.strip()
         return None
     except Exception as e:
         logger.debug(f"Fallback response generation failed: {e}")

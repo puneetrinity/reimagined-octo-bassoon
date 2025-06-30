@@ -116,7 +116,7 @@ async def wait_for_model_ready(model_manager, model_name: str, timeout: float = 
     while time.time() - start < timeout:
         try:
             # Force refresh model list
-            await model_manager._discover_models()
+            await model_manager._discover_available_models()
             info = model_manager.models.get(model_name)
             if info and getattr(info, 'status', None) == ModelStatus.READY:
                 logger.info(f"Model '{model_name}' is READY.")
