@@ -228,7 +228,7 @@ class ModelManager:
             self.is_initialized = False
             return False
 
-    async def _discover_available_models(self) -> None:
+    async def _discover_available_models(self, force_refresh: bool = False) -> None:
         """Discover and catalog available models from Ollama."""
         try:
             # Try to get models with timeout
@@ -237,6 +237,11 @@ class ModelManager:
                 timeout=30.0  # 30 second timeout
             )
             logger.info(f"📚 Found {len(models_data)} available models")
+            
+            # Clear existing models if force refresh
+            if force_refresh:
+                self.models.clear()
+                logger.info("🔄 Cleared existing model cache for refresh")
             
             for model_data in models_data:
                 # Extract model name from the model data dictionary
@@ -269,6 +274,17 @@ class ModelManager:
         except Exception as e:
             logger.error(f"Model discovery failed: {e}")
             raise
+
+    async def refresh_models(self) -> bool:
+        """Force refresh of available models from Ollama."""
+        try:
+            logger.info("🔄 Force refreshing model list from Ollama...")
+            await self._discover_available_models(force_refresh=True)
+            logger.info(f"✅ Model refresh completed: {len(self.models)} models available")
+            return len(self.models) > 0
+        except Exception as e:
+            logger.error(f"❌ Model refresh failed: {e}")
+            return False
 
     def select_optimal_model(
         self,
@@ -339,9 +355,12 @@ class ModelManager:
                     self._selection_cache[cache_key] = (model_name, time.time())
                     return model_name
             
-            # If no models are available, return a common default
-            logger.error("No models available - using default fallback")
-            return "llama2:7b-chat"
+            # If no models are available, try the default from env or config
+            from app.core.config import get_settings
+            settings = get_settings()
+            default_model = getattr(settings, 'default_model', 'phi3:mini')
+            logger.error(f"No models available - using configured default: {default_model}")
+            return default_model
         
         # Select best model based on performance metrics (only if not cached)
         best_model = available_models[0]
@@ -396,6 +415,13 @@ class ModelManager:
         """
         if not self.is_initialized:
             await self.initialize()
+        
+        # Auto-retry model discovery if no models available (startup race condition fix)
+        if len(self.models) == 0:
+            logger.warning("⚠️ No models available - attempting model refresh...")
+            refresh_success = await self.refresh_models()
+            if not refresh_success:
+                logger.error("❌ Model refresh failed - no models available")
         
         start_time = time.time()
         
