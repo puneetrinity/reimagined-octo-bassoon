@@ -201,6 +201,18 @@ class IntentClassifierNode(BaseGraphNode):
                             f"[IntentClassifierNode] Model call completed in {elapsed:.2f}s | correlation_id={correlation_id}"
                         )
                         if result.success:
+                            # Track which model was used for intent classification
+                            if hasattr(result, 'model_used') and result.model_used:
+                                if not hasattr(state, 'models_used'):
+                                    state.models_used = set()
+                                state.models_used.add(result.model_used)
+                                logger.debug(f"[IntentClassifierNode] Tracked model usage: {result.model_used}")
+                            elif model_name:
+                                if not hasattr(state, 'models_used'):
+                                    state.models_used = set()
+                                state.models_used.add(model_name)
+                                logger.debug(f"[IntentClassifierNode] Tracked model usage (fallback): {model_name}")
+                            
                             intent = result.text.strip().lower()
                             if intent in [
                                 "question",
@@ -618,6 +630,19 @@ class ResponseGeneratorNode(BaseGraphNode):
                     )
                     response = self._post_process_response(result.text, state)
                     state.final_response = response
+                    
+                    # Track which model was used for this response
+                    if hasattr(result, 'model_used') and result.model_used:
+                        if not hasattr(state, 'models_used'):
+                            state.models_used = set()
+                        state.models_used.add(result.model_used)
+                        logger.debug(f"[ResponseGeneratorNode] Tracked model usage: {result.model_used}")
+                    elif model_name:
+                        # Fallback: use the selected model name
+                        if not hasattr(state, 'models_used'):
+                            state.models_used = set()
+                        state.models_used.add(model_name)
+                        logger.debug(f"[ResponseGeneratorNode] Tracked model usage (fallback): {model_name}")
                     logger.debug(f"[ResponseGeneratorNode] SUCCESS PATH: state.final_response = '{state.final_response}'")
                     logger.debug(
                         "[ResponseGeneratorNode] Diagnostic: After post-processing",
