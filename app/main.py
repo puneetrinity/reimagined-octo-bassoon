@@ -437,9 +437,12 @@ async def health_check():
 async def readiness_check():
     """Kubernetes readiness probe endpoint."""
     required_components = ["model_manager", "chat_graph", "search_graph"]
+    
+    # Get actual app state where components are stored
+    actual_app_state = getattr(app.state, 'app_state', {})
 
     for component in required_components:
-        if component not in app_state:
+        if component not in actual_app_state:
             raise HTTPException(
                 status_code=503, detail=f"Component {component} not ready"
             )
@@ -461,23 +464,26 @@ async def system_status():
         redis_status = "disconnected"
         ollama_status = "disconnected"
 
-        if "cache_manager" in app_state and app_state["cache_manager"]:
+        # Get actual app state where components are stored
+        actual_app_state = getattr(app.state, 'app_state', {})
+        
+        if "cache_manager" in actual_app_state and actual_app_state["cache_manager"]:
             redis_status = "connected"
 
-        if "model_manager" in app_state:
+        if "model_manager" in actual_app_state:
             try:
-                _stats = app_state["model_manager"].get_model_stats()
+                _stats = actual_app_state["model_manager"].get_model_stats()
                 ollama_status = "connected"
             except Exception:
                 ollama_status = "error"
 
         # Provider status
-        api_key_status = app_state.get("api_key_status", {})
+        api_key_status = actual_app_state.get("api_key_status", {})
 
         # Calculate uptime
         uptime = None
-        if "startup_time" in app_state:
-            uptime = time.time() - app_state["startup_time"]
+        if "startup_time" in actual_app_state:
+            uptime = time.time() - actual_app_state["startup_time"]
 
         return {
             "status": "operational",
@@ -486,10 +492,10 @@ async def system_status():
                 "ollama": ollama_status,
                 "api": "healthy",
                 "search_graph": "initialized"
-                if "search_graph" in app_state
+                if "search_graph" in actual_app_state
                 else "not_initialized",
                 "chat_graph": "initialized"
-                if "chat_graph" in app_state
+                if "chat_graph" in actual_app_state
                 else "not_initialized",
             },
             "providers": {
