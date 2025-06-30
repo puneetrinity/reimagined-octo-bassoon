@@ -196,33 +196,33 @@ MODEL_ASSIGNMENTS = {
     # Original chat/search tasks
     "simple_classification": "phi3:mini",
     "qa_and_summary": "phi3:mini", 
-    "analytical_reasoning": "llama3",
-    "deep_research": "llama3",
+    "analytical_reasoning": "llama3:8b",
+    "deep_research": "llama3:8b",
     "code_tasks": "phi3:mini",
-    "multilingual": "llama3",
-    "creative_writing": "llama3",
-    "conversation": "llama3",
+    "multilingual": "llama3:8b",
+    "creative_writing": "llama3:8b",
+    "conversation": "llama3:8b",
     
     # Recruitment-specific tasks
     "resume_parsing": "deepseek-llm:7b",
-    "bias_detection": "mistral",
-    "matching_logic": "llama3", 
-    "conversational_script_generation": "llama3",
+    "bias_detection": "mistral:7b",
+    "matching_logic": "llama3:8b", 
+    "conversational_script_generation": "llama3:8b",
     "report_generation": "phi3:mini",
     
     # Recruitment workflow aliases
     "parsing": "deepseek-llm:7b",
-    "bias_check": "mistral", 
-    "matching": "llama3",
-    "script_gen": "llama3",
+    "bias_check": "mistral:7b", 
+    "matching": "llama3:8b",
+    "script_gen": "llama3:8b",
     "summary_report": "phi3:mini"
 }
 
 PRIORITY_TIERS = {
     "T0": ["phi3:mini"],                          # Always loaded (2GB) - reports/simple tasks
-    "T1": ["deepseek-llm:7b", "mistral"],        # Keep warm (14GB) - frequent parsing/bias detection
-    "T2": ["llama3"],                             # Load on demand (8GB) - reasoning/matching tasks
-    "T3": []                                      # Cold storage - unused models
+    "T1": ["deepseek-llm:7b", "mistral:7b"],     # Keep warm (14GB) - frequent parsing/bias detection
+    "T2": ["llama3:8b"],                          # Load on demand (8GB) - reasoning/matching tasks
+    "T3": ["tinyllama:latest"]                    # Cold storage - fallback model
 }
 
 # API costs (in INR) 
