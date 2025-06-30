@@ -32,8 +32,13 @@ def get_model_manager(request: Any = None) -> ModelManager:
         return _initialized_model_manager
     
     # Fallback: create new instance (for startup or testing)
+    import os
     settings = get_settings()
-    return ModelManager(ollama_host=settings.ollama_host)
+    # Force external Ollama URL for RunPod deployment
+    ollama_host = os.getenv("OLLAMA_HOST", settings.ollama_host)
+    if "localhost" in ollama_host and "runpod.net" not in ollama_host:
+        ollama_host = "https://l4vja98so6wvh9-11434.proxy.runpod.net"
+    return ModelManager(ollama_host=ollama_host)
 
 
 def get_cache_manager() -> CacheManager:
