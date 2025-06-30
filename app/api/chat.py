@@ -191,7 +191,7 @@ async def chat_complete(
         # DEBUG: Log before graph execution
         logger.info(f"DEBUG: About to execute graph with state: query={graph_state.original_query}")
         logger.info(f"DEBUG: ChatGraph instance: {chat_graph_instance}")
-        logger.info(f"DEBUG: Model manager: {model_manager}")
+        logger.info(f"DEBUG: Model manager: {app_state.get('model_manager')}")
         
         chat_result = await safe_graph_execute(
             chat_graph_instance, graph_state, timeout=chat_request.max_execution_time
