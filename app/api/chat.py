@@ -254,7 +254,9 @@ async def chat_complete(
             # Error Recovery Mechanism #1: Try fallback model
             try:
                 logger.info("Attempting error recovery with fallback response...")
-                fallback_response = await _generate_fallback_response(request.query, chat_graph, model_manager)
+                # Get model_manager from app_state for fallback
+                model_manager = app_state.get('model_manager')
+                fallback_response = await _generate_fallback_response(chat_request.message, chat_graph_instance, model_manager)
                 if fallback_response:
                     final_response = fallback_response
                     response_source = "error_recovery_fallback"
