@@ -60,12 +60,18 @@ download_model() {
 
 # Check if models already exist
 echo "🔍 Checking existing models..."
+if ! ollama list >/dev/null 2>&1; then
+    echo "❌ Cannot connect to ollama service for model check"
+    exit 1
+fi
+
 if ollama list | grep -q "phi3:mini"; then
     echo "✅ phi3:mini model already exists"
 else
     echo "📦 phi3:mini model not found, downloading..."
     if ! download_model "phi3:mini"; then
-        echo "⚠️ Failed to download phi3:mini, but continuing..."
+        echo "❌ Failed to download phi3:mini - this is critical"
+        exit 1
     fi
 fi
 
@@ -80,7 +86,10 @@ echo "🔍 Checking for additional models..."
 
 # List all available models
 echo "📋 Available models:"
-ollama list
+if ! ollama list; then
+    echo "❌ Failed to list models - ollama may not be ready"
+    exit 1
+fi
 
 # Test model functionality
 echo "🧪 Testing model functionality..."
@@ -92,9 +101,13 @@ fi
 
 echo "🎉 Model initialization complete!"
 echo "📊 Model statistics:"
-ollama list
+if ! ollama list; then
+    echo "❌ Failed to get final model statistics"
+    exit 1
+fi
 
 # Create a flag file to indicate initialization is complete
+mkdir -p /root/.ollama/models
 touch /root/.ollama/models/.initialized
 echo "✅ Initialization flag created"
 
