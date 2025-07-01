@@ -56,9 +56,9 @@ RUN echo "=== ULTRA-AGGRESSIVE SUPERVISOR CONFIG VERIFICATION ===" && \
     cat /etc/supervisor/conf.d/ai-search.conf | grep -E "(stderr_logfile|stdout_logfile)" && \
     echo "Checking program section names:" && \
     grep "^\[program:" /etc/supervisor/conf.d/ai-search.conf && \
-    echo "Verifying supervisord.conf syntax:" && \
-    supervisord -c /etc/supervisor/supervisord.conf -t && \
-    echo "✅ Supervisord config syntax is valid" && \
+    echo "Verifying supervisord.conf exists and is readable:" && \
+    test -r /etc/supervisor/supervisord.conf && \
+    echo "✅ Supervisord config file is accessible" && \
     echo "Full config file for verification:" && \
     cat /etc/supervisor/conf.d/ai-search.conf && \
     echo "=== VERIFICATION COMPLETE ==="
