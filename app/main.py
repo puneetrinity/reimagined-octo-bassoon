@@ -17,7 +17,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api import chat, research, search, adaptive, monitoring, analytics, evaluation
+from app.api import chat, research, search, adaptive, monitoring, analytics, evaluation, models
 from app.api.security import SecurityMiddleware
 from app.cache.redis_client import CacheManager
 from app.core.config import get_settings
@@ -757,6 +757,12 @@ app.include_router(
     tags=["Evaluation"]
 )
 
+app.include_router(
+    models.router,
+    prefix="/api/v1/models",
+    tags=["Models"]
+)
+
 
 # Root endpoint
 @app.get("/")
@@ -775,6 +781,8 @@ async def root():
         "api_endpoints": {
             "search_basic": "/api/v1/search/basic",
             "search_advanced": "/api/v1/search/advanced",
+            "model_download": "/api/v1/models/download",
+            "model_list": "/api/v1/models/list",
             "health": "/health",
             "metrics": "/metrics",
             "system_status": "/system/status",
