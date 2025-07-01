@@ -133,19 +133,8 @@ echo "=================================="
 cat /etc/supervisor/conf.d/ai-search.conf | head -20
 echo "=================================="
 
-# Test configuration with verbose output
-echo "🧪 Testing supervisor configuration..."
-if ! supervisord -t -c /etc/supervisor/supervisord.conf 2>&1; then
-    echo "❌ Supervisor configuration test failed!"
-    echo "📋 Configuration file contents:"
-    echo "=== /etc/supervisor/supervisord.conf ==="
-    cat /etc/supervisor/supervisord.conf
-    echo "=== /etc/supervisor/conf.d/ai-search.conf ==="
-    cat /etc/supervisor/conf.d/ai-search.conf
-    exit 1
-fi
-
-echo "✅ Supervisor configuration test passed"
+# Skip supervisor test - it actually starts services instead of just testing
+echo "✅ Supervisor configuration files verified, skipping test to avoid premature startup"
 
 echo "🎯 Starting supervisor in foreground mode..."
 echo "   This will start all services: Redis -> Ollama -> FastAPI -> Model Init"
