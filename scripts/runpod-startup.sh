@@ -136,8 +136,19 @@ echo "=================================="
 # Skip supervisor test - it actually starts services instead of just testing
 echo "✅ Supervisor configuration files verified, skipping test to avoid premature startup"
 
-echo "🎯 Starting supervisor in foreground mode..."
-echo "   This will start all services: Redis -> Ollama -> FastAPI -> Model Init"
+echo "🎯 Starting supervisor in background mode for RunPod..."
+echo "   This will start all services: Redis -> Ollama -> FastAPI -> Health Monitor"
 
-# Start supervisor - this should work now!
-exec /usr/bin/supervisord -n -c /etc/supervisor/supervisord.conf
+# Start supervisor in background so terminal remains accessible
+/usr/bin/supervisord -c /etc/supervisor/supervisord.conf
+
+# Wait a moment for services to start
+sleep 5
+
+echo "✅ Supervisor started successfully!"
+echo "🌐 API available at: https://l4vja98so6wvh9-8000.proxy.runpod.net/"
+echo "📖 API docs at: https://l4vja98so6wvh9-8000.proxy.runpod.net/docs"
+echo "💻 Terminal is now accessible for manual commands"
+
+# Keep container alive but allow terminal access
+tail -f /var/log/supervisor/supervisord.log
