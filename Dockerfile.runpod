@@ -43,7 +43,7 @@ COPY scripts ./scripts
 COPY docker ./docker
 COPY .env* ./
 
-# Copy RunPod-specific configurations - FORCE CORRECT FILES - CACHE BUST v4
+# Copy RunPod-specific configurations - FORCE CORRECT FILES - CACHE BUST v5
 COPY docker/supervisor-runpod.conf /etc/supervisor/conf.d/ai-search.conf
 COPY docker/supervisord.conf /etc/supervisor/supervisord.conf
 
@@ -56,6 +56,8 @@ RUN echo "=== ULTRA-AGGRESSIVE SUPERVISOR CONFIG VERIFICATION ===" && \
     cat /etc/supervisor/conf.d/ai-search.conf | grep -E "(stderr_logfile|stdout_logfile)" && \
     echo "Checking program section names:" && \
     grep "^\[program:" /etc/supervisor/conf.d/ai-search.conf && \
+    echo "Checking model-init autostart setting:" && \
+    grep -A 10 "^\[program:model-init\]" /etc/supervisor/conf.d/ai-search.conf && \
     echo "Verifying supervisord.conf exists and is readable:" && \
     test -r /etc/supervisor/supervisord.conf && \
     echo "✅ Supervisord config file is accessible" && \
