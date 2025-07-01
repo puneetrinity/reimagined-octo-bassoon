@@ -7,6 +7,10 @@ services:
       dockerfile: Dockerfile.runpod-direct
     container_name: ai-search-system
     
+    # CRITICAL: Enable TTY and stdin for RunPod terminal access
+    tty: true
+    stdin_open: true
+    
     # Port mapping
     ports:
       - "8000:8000"    # FastAPI app

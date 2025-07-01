@@ -10,6 +10,10 @@ services:
     image: advancellmsearch/ai-search-system:runpod-latest
     container_name: ai-search-runpod
     
+    # CRITICAL: Enable TTY and stdin for RunPod terminal access
+    tty: true
+    stdin_open: true
+    
     # GPU configuration for A5000
     deploy:
       resources:
