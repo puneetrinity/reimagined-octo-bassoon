@@ -56,6 +56,9 @@ RUN echo "=== ULTRA-AGGRESSIVE SUPERVISOR CONFIG VERIFICATION ===" && \
     cat /etc/supervisor/conf.d/ai-search.conf | grep -E "(stderr_logfile|stdout_logfile)" && \
     echo "Checking program section names:" && \
     grep "^\[program:" /etc/supervisor/conf.d/ai-search.conf && \
+    echo "Verifying supervisord.conf syntax:" && \
+    supervisord -c /etc/supervisor/supervisord.conf -t && \
+    echo "✅ Supervisord config syntax is valid" && \
     echo "Full config file for verification:" && \
     cat /etc/supervisor/conf.d/ai-search.conf && \
     echo "=== VERIFICATION COMPLETE ==="
@@ -71,8 +74,10 @@ RUN mkdir -p /var/log/supervisor /app/logs /root/.ollama/models /var/run /tmp &&
     touch /var/log/supervisor/api.err.log /var/log/supervisor/api.out.log && \
     touch /var/log/supervisor/system-init.err.log /var/log/supervisor/system-init.out.log && \
     touch /var/log/supervisor/model-init.err.log /var/log/supervisor/model-init.out.log && \
+    touch /var/log/supervisor/health.err.log /var/log/supervisor/health.out.log && \
     chmod 666 /var/log/supervisor/*.log && \
-    chmod +x scripts/runpod-startup.sh scripts/verify-supervisor-config.sh scripts/emergency-supervisor-rewrite.sh
+    chmod +x scripts/runpod-startup.sh scripts/verify-supervisor-config.sh scripts/emergency-supervisor-rewrite.sh && \
+    chmod 700 /var/run
 
 # Expose the application port
 EXPOSE 8000
