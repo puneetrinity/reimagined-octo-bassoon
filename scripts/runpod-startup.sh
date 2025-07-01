@@ -151,4 +151,9 @@ echo "📖 API docs at: https://l4vja98so6wvh9-8000.proxy.runpod.net/docs"
 echo "💻 Terminal is now accessible for manual commands"
 
 # Keep container alive but allow terminal access
-tail -f /var/log/supervisor/supervisord.log
+echo "🎉 Startup complete! Terminal is ready for use."
+echo "ℹ️  Check logs with: tail -f /var/log/supervisor/*.log"
+echo "🔧 Download models with: ollama pull phi3:mini"
+
+# For RunPod: Just exit after starting services
+# The Dockerfile CMD will exec /bin/bash after this script completes

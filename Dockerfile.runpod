@@ -88,5 +88,5 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=5 \
     CMD curl --fail http://localhost:8000/health/live || exit 1
 
-# Use the RunPod startup script
-CMD ["/app/scripts/runpod-startup.sh"]
+# Use a combination approach for RunPod: start services and keep container alive
+CMD ["/bin/bash", "-c", "/app/scripts/runpod-startup.sh && exec /bin/bash"]
