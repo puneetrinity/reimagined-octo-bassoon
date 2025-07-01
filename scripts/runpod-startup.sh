@@ -139,21 +139,21 @@ echo "✅ Supervisor configuration files verified, skipping test to avoid premat
 echo "🎯 Starting supervisor in background mode for RunPod..."
 echo "   This will start all services: Redis -> Ollama -> FastAPI -> Health Monitor"
 
-# Start supervisor in background so terminal remains accessible
+# Start supervisor in daemon mode (this will NOT block)
 /usr/bin/supervisord -c /etc/supervisor/supervisord.conf
 
-# Wait a moment for services to start
-sleep 5
+# Wait for services to start
+sleep 10
 
 echo "✅ Supervisor started successfully!"
 echo "🌐 API available at: https://l4vja98so6wvh9-8000.proxy.runpod.net/"
 echo "📖 API docs at: https://l4vja98so6wvh9-8000.proxy.runpod.net/docs"
 echo "💻 Terminal is now accessible for manual commands"
-
-# Keep container alive but allow terminal access
-echo "🎉 Startup complete! Terminal is ready for use."
+echo ""
+echo "🎉 Startup complete! Dropping to bash shell..."
 echo "ℹ️  Check logs with: tail -f /var/log/supervisor/*.log"
 echo "🔧 Download models with: ollama pull phi3:mini"
+echo ""
 
-# For RunPod: Just exit after starting services
-# The Dockerfile CMD will exec /bin/bash after this script completes
+# Drop to interactive bash shell
+exec /bin/bash

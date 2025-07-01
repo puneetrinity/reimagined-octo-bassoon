@@ -70,6 +70,7 @@ RUN mkdir -p /var/log/supervisor /app/logs /root/.ollama/models /var/run /tmp &&
     chmod 755 /app/logs /var/log/supervisor /var/run && \
     chown root:root /app/logs /var/log/supervisor /var/run && \
     chmod +x scripts/*.py scripts/*.sh 2>/dev/null || true && \
+    chmod +x scripts/runpod-entrypoint.sh && \
     touch /var/log/supervisor/supervisord.log && \
     touch /var/log/supervisor/redis.err.log /var/log/supervisor/redis.out.log && \
     touch /var/log/supervisor/ollama.err.log /var/log/supervisor/ollama.out.log && \
@@ -88,6 +89,5 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=5 \
     CMD curl --fail http://localhost:8000/health/live || exit 1
 
-# Start services in background and provide terminal access
-ENTRYPOINT ["/app/scripts/runpod-entrypoint.sh"]
-CMD ["/bin/bash"]
+# Use the original working startup script
+CMD ["/bin/bash", "-c", "/app/scripts/runpod-startup.sh"]
