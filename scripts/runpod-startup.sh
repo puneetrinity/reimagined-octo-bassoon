@@ -44,6 +44,18 @@ fi
 echo "📁 Creating ALL required directories IMMEDIATELY..."
 mkdir -p /var/log/supervisor /root/.ollama/models /app/cache /var/run /tmp
 
+# Initialize Ollama directories and environment
+echo "🤖 Initializing Ollama environment..."
+export OLLAMA_MODELS="/root/.ollama/models"
+export OLLAMA_KEEP_ALIVE="24h"
+export OLLAMA_HOST="0.0.0.0:11434"
+export OLLAMA_ORIGINS="*"
+export CUDA_VISIBLE_DEVICES="0"
+
+# Ensure Ollama directories have correct permissions
+chown -R root:root /root/.ollama
+chmod -R 755 /root/.ollama
+
 # Force create the directory with explicit permissions
 chmod 755 /var/log/supervisor /var/run
 chown root:root /var/log/supervisor /var/run

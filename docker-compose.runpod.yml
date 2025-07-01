@@ -6,7 +6,7 @@ services:
   ai-search-runpod:
     build:
       context: .
-      dockerfile: Dockerfile.production
+      dockerfile: Dockerfile.runpod
     image: advancellmsearch/ai-search-system:runpod-latest
     container_name: ai-search-runpod
     
@@ -25,10 +25,14 @@ services:
       - CUDA_VISIBLE_DEVICES=0
       - REDIS_URL=redis://localhost:6379
       - OLLAMA_HOST=http://localhost:11434
+      - OLLAMA_MODELS=/root/.ollama/models
+      - OLLAMA_KEEP_ALIVE=24h
+      - OLLAMA_ORIGINS=*
       - ENVIRONMENT=production
       - API_HOST=0.0.0.0
       - API_PORT=8000
       - LOG_LEVEL=INFO
+      - DEFAULT_MODEL=phi3:mini
     
     # Port mapping
     ports:
