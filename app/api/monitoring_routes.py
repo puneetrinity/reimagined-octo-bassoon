@@ -109,7 +109,7 @@ async def get_cache_performance() -> Dict:
 async def get_adaptive_comprehensive_status() -> Dict:
     """Get comprehensive adaptive routing status with real metrics"""
     try:
-        from app.api.adaptive import _adaptive_router
+        from app.api.adaptive_routes import _adaptive_router
 
         if _adaptive_router is None:
             raise HTTPException(
@@ -208,7 +208,7 @@ async def get_production_health() -> Dict:
 
         # Check adaptive routing
         try:
-            from app.api.adaptive import _adaptive_router
+            from app.api.adaptive_routes import _adaptive_router
 
             if _adaptive_router and hasattr(_adaptive_router, "get_week2_status"):
                 adaptive_status = _adaptive_router.get_week2_status()
@@ -303,7 +303,7 @@ async def get_dashboard_summary() -> Dict:
 
         # Performance summary
         try:
-            from app.api.adaptive import _adaptive_router
+            from app.api.adaptive_routes import _adaptive_router
 
             if _adaptive_router and hasattr(_adaptive_router, "get_week2_status"):
                 adaptive_status = _adaptive_router.get_week2_status()
@@ -328,7 +328,7 @@ async def get_dashboard_summary() -> Dict:
 
         # Adaptive routing summary
         try:
-            from app.api.adaptive import _adaptive_router
+            from app.api.adaptive_routes import _adaptive_router
 
             if _adaptive_router and hasattr(_adaptive_router, "get_week2_status"):
                 adaptive_status = _adaptive_router.get_week2_status()
