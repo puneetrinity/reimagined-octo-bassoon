@@ -1060,7 +1060,6 @@ class ChatGraph(BaseGraph):
         from app.graphs.base import EndNode
 
         return {
-            "start": ContextManagerNode(self.cache_manager),  # Entrypoint for LangGraph
             "context_manager": ContextManagerNode(self.cache_manager),
             "intent_classifier": IntentClassifierNode(self.model_manager),
             "response_generator": ResponseGeneratorNode(self.model_manager),
@@ -1074,7 +1073,6 @@ class ChatGraph(BaseGraph):
         Define the flow between nodes using descriptive node keys.
         """
         return [
-            ("start", "context_manager"),  # Entry edge for LangGraph
             ("context_manager", "intent_classifier"),
             ("intent_classifier", "response_generator"),
             ("response_generator", "cache_update"),

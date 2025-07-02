@@ -12,18 +12,11 @@ from enum import Enum
 from typing import Any, Dict, List, Optional
 
 import structlog
-from langgraph.graph import StateGraph
+from langgraph.graph import StateGraph, START, END
 from pydantic import BaseModel
-
-# Define local START and END constants for graph entry/exit
-START = "start"
-END = "end"
 
 logger = structlog.get_logger(__name__)
 
-# Define local START and END constants for graph entry/exit
-# START = "START"
-# END = "END"
 
 
 class GraphType(Enum):
@@ -245,9 +238,10 @@ class BaseGraph(ABC):
                 elif len(edge) == 3:
                     from_node, condition_func, mapping = edge
                     self.graph.add_conditional_edges(from_node, condition_func, mapping)
-            # Set entry and finish points using consistent API
-            self.graph.set_entry_point(START)
-            self.graph.set_finish_point(END)
+            # Add START edge to first node
+            first_node = "context_manager" if "context_manager" in self.nodes else list(self.nodes.keys())[0]
+            self.graph.add_edge(START, first_node)
+            self.graph.add_edge("end", END)
             # Compile the graph to enable execution
             self.graph = self.graph.compile()
             self.logger.info(
