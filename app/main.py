@@ -17,8 +17,12 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api import (adaptive, analytics, chat, evaluation, models, monitoring,
-                     research, search)
+from app.api import (chat, research, search)
+from app.api import adaptive_routes as adaptive
+from app.api import analytics_routes as analytics
+from app.api import evaluation_routes as evaluation
+from app.api import models_routes as models
+from app.api import monitoring_routes as monitoring
 from app.api.security import SecurityMiddleware
 from app.cache.redis_client import CacheManager
 from app.core.config import get_settings
