@@ -290,11 +290,19 @@ class BaseGraph(ABC):
             
             # Handle LangGraph result - it might be a different type
             if hasattr(result, "__dict__"):
+                # Result is already a proper object, copy attributes to state
                 for key, value in result.__dict__.items():
                     if hasattr(state, key):
                         setattr(state, key, value)
                 return state
+            elif isinstance(result, dict):
+                # Result is a dict, copy dict values to state
+                for key, value in result.items():
+                    if hasattr(state, key):
+                        setattr(state, key, value)
+                return state
             else:
+                # Fallback: return result as is
                 return result
         except asyncio.TimeoutError:
             duration = time.time() - start_time
