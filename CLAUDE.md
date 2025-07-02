@@ -28,13 +28,16 @@ The system follows a layered architecture:
 
 ### Core Development
 ```bash
-# Start development environment (uses Docker Compose)
-docker-compose up --build
+# Quick start with Makefile
+cd deploy && make dev
+
+# OR manual docker-compose
+cd deploy && docker-compose up --build
 
 # Access services
 # API: http://localhost:8000
 # Docs: http://localhost:8000/docs  
-# Redis: http://localhost:8081
+# Redis: localhost:6379
 # Health: http://localhost:8000/health
 ```
 
@@ -201,9 +204,9 @@ logger.info("Operation completed",
 
 ### Docker Development
 ```bash
-docker-compose up --build  # Start all services
-docker-compose logs app    # View application logs
-docker-compose down        # Stop services
+cd deploy && make dev      # Start all services
+cd deploy && make logs     # View application logs
+cd deploy && make clean    # Stop and clean services
 ```
 
 ### Production (Gunicorn)
