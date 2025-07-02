@@ -279,14 +279,21 @@ class BaseGraph(ABC):
             query_id=getattr(state, "query_id", None),
         )
         try:
+            self.logger.info(f"DEBUG: About to call graph.ainvoke with state: {type(state)}")
+            self.logger.info(f"DEBUG: Graph object: {self.graph}")
+            
             result = await asyncio.wait_for(self.graph.ainvoke(state), timeout=60.0)
             duration = time.time() - start_time
+            
             self.logger.info(
                 "Graph execution completed",
                 graph_name=self.name,
                 query_id=getattr(state, "query_id", None),
                 duration=duration,
             )
+            self.logger.info(f"DEBUG: Graph result type: {type(result)}")
+            self.logger.info(f"DEBUG: Graph result: {result}")
+            
             # Handle LangGraph result - it might be a different type
             if hasattr(result, "__dict__"):
                 for key, value in result.__dict__.items():
@@ -315,8 +322,10 @@ class BaseGraph(ABC):
                 query_id=getattr(state, "query_id", None),
                 error=str(e),
                 duration=duration,
-                exc_info=e,
+                exc_info=True,
             )
+            self.logger.error(f"DEBUG: Full exception details: {e}")
+            self.logger.error(f"DEBUG: Exception type: {type(e)}")
             state.errors.append(f"Graph execution failed: {str(e)}")
             if not state.final_response:
                 state.final_response = "An error occurred during processing."
