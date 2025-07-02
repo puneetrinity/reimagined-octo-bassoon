@@ -261,6 +261,10 @@ app.add_middleware(LoggingMiddleware)
 async def app_state_middleware(request: Request, call_next):
     """Ensure app.state has access to components."""
     if hasattr(request.app, "state"):
+        # Get the app_state that was set during lifespan startup
+        app_state = getattr(request.app.state, "app_state", {})
+        # These are already accessible via request.app.state.app_state, 
+        # but we can also set direct references for convenience
         request.app.state.search_system = app_state.get("search_system")
         request.app.state.model_manager = app_state.get("model_manager")
         request.app.state.cache_manager = app_state.get("cache_manager")
@@ -399,7 +403,7 @@ async def health_check():
             overall_healthy = False
 
         # Check provider API keys
-        api_key_status = app_state.get("api_key_status", {})
+        api_key_status = actual_app_state.get("api_key_status", {})
         if api_key_status.get("brave_search", False):
             components["brave_search"] = "configured"
         else:
@@ -739,7 +743,8 @@ app.include_router(models.router, prefix="/api/v1/models", tags=["Models"])
 @app.get("/")
 async def root():
     """Root endpoint with system information."""
-    api_key_status = app_state.get("api_key_status", {})
+    actual_app_state = getattr(app.state, "app_state", {})
+    api_key_status = actual_app_state.get("api_key_status", {})
 
     return {
         "name": "AI Search System",
