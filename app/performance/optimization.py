@@ -488,9 +488,9 @@ class OptimizedSearchSystem:
                 result = await self.search_graph.execute(query, **kwargs)
 
                 # Add performance metrics to result
-                result[
-                    "performance_metrics"
-                ] = self.optimizer.get_comprehensive_metrics()
+                result["performance_metrics"] = (
+                    self.optimizer.get_comprehensive_metrics()
+                )
 
                 self.optimizer.tracker.finish_operation(
                     request_id,

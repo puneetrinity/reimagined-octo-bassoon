@@ -2,27 +2,21 @@
 Real search API implementation with proper coroutine safety.
 Provides search endpoints with proper security, validation and no coroutine leaks.
 """
+
 import time
 import uuid
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Request
-from pydantic import BaseModel
 
 from app.api.security import get_current_user, require_permission
-from app.core.async_utils import (
-    AsyncSafetyValidator,
-    ensure_awaited,
-    safe_execute,
-)
+from app.core.async_utils import (AsyncSafetyValidator, ensure_awaited,
+                                  safe_execute)
 from app.core.logging import get_correlation_id, get_logger, log_performance
-from app.schemas.requests import SearchRequest, AdvancedSearchRequest
-from app.schemas.responses import (
-    SearchData,
-    SearchResponse,
-    create_error_response,
-    create_success_response,
-)
+from app.schemas.requests import AdvancedSearchRequest, SearchRequest
+from app.schemas.responses import (SearchData, SearchResponse,
+                                   create_error_response,
+                                   create_success_response)
 
 router = APIRouter()
 logger = get_logger("api.search")
@@ -41,9 +35,9 @@ async def search_health(request: Request):
         "status": "healthy" if search_available else "degraded",
         "service": "search",
         "search_system": "available" if search_available else "initializing",
-        "providers": ["brave_search", "duckduckgo", "scrapingbee"]
-        if search_available
-        else [],
+        "providers": (
+            ["brave_search", "duckduckgo", "scrapingbee"] if search_available else []
+        ),
         "timestamp": time.time(),
         "correlation_id": get_correlation_id(),
     }
@@ -68,7 +62,9 @@ async def basic_search(
         "Search request started",
         query=search_request.query,
         query_id=query_id,
-        user_id=getattr(current_user, 'user_id', current_user.get('user_id', 'unknown')),
+        user_id=getattr(
+            current_user, "user_id", current_user.get("user_id", "unknown")
+        ),
         correlation_id=correlation_id,
     )
     # Simulate a search result for test
@@ -133,7 +129,9 @@ async def advanced_search(
     logger.info(
         "Advanced search initiated",
         query=body.query,
-        user_id=getattr(current_user, 'user_id', current_user.get('user_id', 'unknown')),
+        user_id=getattr(
+            current_user, "user_id", current_user.get("user_id", "unknown")
+        ),
         filters=getattr(body, "filters", None),
         budget=getattr(body, "budget", None),
         quality=getattr(body, "quality", None),
@@ -183,9 +181,11 @@ async def advanced_search(
             search_data_obj = SearchData(
                 query=body.query,
                 results=advanced_results,
-                summary=f"Advanced search found {len(advanced_results)} filtered results. {search_result['response']}"
-                if len(advanced_results) > 0
-                else "No results found matching your advanced criteria.",
+                summary=(
+                    f"Advanced search found {len(advanced_results)} filtered results. {search_result['response']}"
+                    if len(advanced_results) > 0
+                    else "No results found matching your advanced criteria."
+                ),
                 total_results=len(advanced_results),
                 search_time=search_result["metadata"]["execution_time"],
                 sources_consulted=_extract_real_sources(search_result),

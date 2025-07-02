@@ -2,6 +2,7 @@
 Input validation and basic security middleware.
 Implements security foundations early to prevent rework.
 """
+
 import html
 import os
 import re
@@ -61,12 +62,7 @@ COMPILED_SQL_PATTERNS = [re.compile(pattern, re.IGNORECASE) for pattern in SQL_P
 class SecurityViolation(Exception):
     """Raised when security validation fails."""
 
-    def __init__(
-        self,
-        violation_type: str,
-        details: str,
-        field: Optional[str] = None
-    ):
+    def __init__(self, violation_type: str, details: str, field: Optional[str] = None):
         self.violation_type = violation_type
         self.details = details
         self.field = field
@@ -113,11 +109,7 @@ class InputSanitizer:
                 )
 
     @staticmethod
-    def validate_length(
-        text: str,
-        max_length: int,
-        field_name: str = "input"
-    ) -> None:
+    def validate_length(text: str, max_length: int, field_name: str = "input") -> None:
         """Validate text length."""
         if isinstance(text, str) and len(text) > max_length:
             raise SecurityViolation(
@@ -185,35 +177,37 @@ class RateLimiter:
     def _cleanup(self, window: int = RATE_LIMIT_WINDOW) -> None:
         """Clean up old entries and limit memory usage."""
         now = time.time()
-        
+
         # Only cleanup every 5 minutes to avoid performance impact
         if now - self.last_cleanup < 300:
             return
-            
+
         # Clean old entries
         identifiers_to_remove = []
         for identifier, req_times in self.requests.items():
             # Remove old requests
-            valid_requests = [req_time for req_time in req_times if now - req_time < window]
+            valid_requests = [
+                req_time for req_time in req_times if now - req_time < window
+            ]
             if valid_requests:
                 self.requests[identifier] = valid_requests
             else:
                 identifiers_to_remove.append(identifier)
-        
+
         # Remove empty identifiers
         for identifier in identifiers_to_remove:
             del self.requests[identifier]
-        
+
         # If still too many identifiers, remove oldest
         if len(self.requests) > self.max_identifiers:
             # Sort by most recent request time and keep only the most recent max_identifiers
             sorted_identifiers = sorted(
                 self.requests.items(),
                 key=lambda x: max(x[1]) if x[1] else 0,
-                reverse=True
-            )[:self.max_identifiers]
+                reverse=True,
+            )[: self.max_identifiers]
             self.requests = dict(sorted_identifiers)
-        
+
         self.last_cleanup = now
 
     def is_allowed(
@@ -224,7 +218,7 @@ class RateLimiter:
     ) -> bool:
         """Check if request is within rate limits."""
         now = time.time()
-        
+
         # Periodic cleanup
         self._cleanup(window)
 
@@ -255,11 +249,7 @@ class RateLimiter:
         self.requests[identifier].append(now)
         return True
 
-    def get_remaining(
-        self,
-        identifier: str,
-        limit: int = DEFAULT_RATE_LIMIT
-    ) -> int:
+    def get_remaining(self, identifier: str, limit: int = DEFAULT_RATE_LIMIT) -> int:
         """Get remaining requests for identifier."""
         if identifier not in self.requests:
             return limit
@@ -359,11 +349,7 @@ class SecurityMiddleware(BaseHTTPMiddleware):
                 body=body.decode(errors="replace"),
                 correlation_id=get_correlation_id(),
             )
-            return self._create_error_response(
-                e.violation_type,
-                e.details,
-                400
-            )
+            return self._create_error_response(e.violation_type, e.details, 400)
 
         except Exception as e:
             # Enhanced debug logging
@@ -383,15 +369,17 @@ class SecurityMiddleware(BaseHTTPMiddleware):
                     exc_info=True,
                 )
             except Exception as log_error:
-                self.logger.error(f"Security middleware error with logging failure: {e}, log_error: {log_error}")
-            
+                self.logger.error(
+                    f"Security middleware error with logging failure: {e}, log_error: {log_error}"
+                )
+
             # For development, let requests through if there are middleware issues
             if request.url.path.startswith("/api/v1/chat"):
                 try:
                     return await call_next(request)
                 except Exception:
                     pass
-            
+
             return self._create_error_response(
                 "SECURITY_ERROR", f"Security validation failed: {str(e)}", 500
             )
@@ -433,7 +421,9 @@ class SecurityMiddleware(BaseHTTPMiddleware):
             headers["Retry-After"] = str(retry_after)
 
         return JSONResponse(
-            status_code=status_code, content=error_response.model_dump(), headers=headers
+            status_code=status_code,
+            content=error_response.model_dump(),
+            headers=headers,
         )
 
 
@@ -464,16 +454,16 @@ class AuthenticationStub:
         api_user = api_key_manager.validate_api_key(token)
         if api_user:
             return api_user
-        
+
         # Simple token validation for development
         if token.startswith("dev-"):
             user_key = token.replace("dev-", "").replace("-token", "")
             return self.users.get(user_key)
-        
+
         # Support simple tokens for testing
         if token in ["test", "demo", "admin"]:
             return self.users.get("dev-user")  # Default to dev-user for simple tokens
-        
+
         return None
 
     def create_anonymous_user(self, client_ip: str) -> Dict[str, Any]:
@@ -512,13 +502,14 @@ async def get_current_user(
             logger.warning(
                 "Invalid authentication token provided", correlation_id=correlation_id
             )
-            raise HTTPException(
-                status_code=401,
-                detail="Invalid authentication token"
-            )
+            raise HTTPException(status_code=401, detail="Invalid authentication token")
     # Create anonymous user
     try:
-        client_ip = request.client.host if request.client and hasattr(request.client, 'host') else "unknown"
+        client_ip = (
+            request.client.host
+            if request.client and hasattr(request.client, "host")
+            else "unknown"
+        )
     except Exception:
         client_ip = "unknown"
     anonymous_user = auth_stub.create_anonymous_user(client_ip)
@@ -540,7 +531,7 @@ def require_permission(permission: str):
         async def wrapper(*args, **kwargs):
             # Extract user from kwargs (injected by dependency)
             current_user = kwargs.get("current_user")
-            
+
             # If not in kwargs, look for it in args (in case it's positional)
             if not current_user:
                 for arg in args:
@@ -549,20 +540,17 @@ def require_permission(permission: str):
                         break
 
             if not current_user:
-                raise HTTPException(
-                    status_code=401,
-                    detail="Authentication required"
-                )
+                raise HTTPException(status_code=401, detail="Authentication required")
 
             # Handle both User objects and dict objects
-            if hasattr(current_user, 'has_permission'):
+            if hasattr(current_user, "has_permission"):
                 # User object with has_permission method
                 if not current_user.has_permission(permission):
                     logger.warning(
                         "Permission denied",
-                        user_id=getattr(current_user, 'user_id', 'unknown'),
+                        user_id=getattr(current_user, "user_id", "unknown"),
                         required_permission=permission,
-                        user_permissions=getattr(current_user, 'permissions', []),
+                        user_permissions=getattr(current_user, "permissions", []),
                         correlation_id=get_correlation_id(),
                     )
                     raise HTTPException(
@@ -603,10 +591,7 @@ def require_tier(min_tier: str):
                     break
 
             if not current_user:
-                raise HTTPException(
-                    status_code=401,
-                    detail="Authentication required"
-                )
+                raise HTTPException(status_code=401, detail="Authentication required")
 
             user_tier = current_user.get("tier", "free")
             if tier_levels.get(user_tier, 0) < tier_levels.get(min_tier, 999):
@@ -672,22 +657,9 @@ class SecureChatInput(SecureTextInput):
 class Constraints(BaseModel):
     """Request constraints with validation"""
 
-    max_cost: Optional[float] = Field(
-        0.05,
-        ge=0,
-        le=100,
-        description="Maximum cost"
-    )
-    max_time: Optional[float] = Field(
-        5.0,
-        ge=0.1,
-        le=300,
-        description="Maximum time"
-    )
-    quality_requirement: Optional[str] = Field(
-        "balanced",
-        description="Quality level"
-    )
+    max_cost: Optional[float] = Field(0.05, ge=0, le=100, description="Maximum cost")
+    max_time: Optional[float] = Field(5.0, ge=0.1, le=300, description="Maximum time")
+    quality_requirement: Optional[str] = Field("balanced", description="Quality level")
     force_local_only: Optional[bool] = Field(False)
 
     @field_validator("quality_requirement")
@@ -704,12 +676,7 @@ class Constraints(BaseModel):
 class ChatRequest(BaseModel):
     """Chat request with proper validation"""
 
-    message: str = Field(
-        ...,
-        min_length=1,
-        max_length=8000,
-        description="Chat message"
-    )
+    message: str = Field(..., min_length=1, max_length=8000, description="Chat message")
     session_id: Optional[str] = Field(None, description="Session identifier")
     context: Optional[Dict[str, Any]] = Field(default_factory=dict)
     constraints: Optional[Constraints] = Field(default_factory=Constraints)
@@ -792,7 +759,7 @@ class APIKeyManager:
         admin_key = os.getenv("ADMIN_API_KEY")
         ai_api_key = os.getenv("AI_API_KEY")
         user_keys = os.getenv("API_KEYS", "").split(",")
-        
+
         # Add the AI_API_KEY from environment
         if ai_api_key:
             self.api_keys[ai_api_key] = {
@@ -802,12 +769,18 @@ class APIKeyManager:
                 "monthly_budget": 1000.0,
                 "current_budget": 1000.0,
                 "rate_limit_per_hour": -1,
-                "permissions": ["chat", "search", "research", "analytics", "advanced_search"],
+                "permissions": [
+                    "chat",
+                    "search",
+                    "research",
+                    "analytics",
+                    "advanced_search",
+                ],
                 "created_at": "2025-01-01",
                 "last_used": None,
                 "status": "active",
             }
-        
+
         if admin_key:
             self.api_keys[admin_key] = {
                 "user_id": "admin_user",
@@ -816,7 +789,14 @@ class APIKeyManager:
                 "monthly_budget": 5000.0,
                 "current_budget": 5000.0,
                 "rate_limit_per_hour": -1,
-                "permissions": ["chat", "search", "research", "analytics", "admin", "advanced_search"],
+                "permissions": [
+                    "chat",
+                    "search",
+                    "research",
+                    "analytics",
+                    "admin",
+                    "advanced_search",
+                ],
                 "created_at": "2025-01-01",
                 "last_used": None,
                 "status": "active",

@@ -6,14 +6,8 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
-import aiohttp
-
-from app.providers.base_provider import (
-    BaseProvider,
-    ProviderConfig,
-    ProviderError,
-    ProviderResult,
-)
+from app.providers.base_provider import (BaseProvider, ProviderConfig,
+                                         ProviderError, ProviderResult)
 
 
 @dataclass

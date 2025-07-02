@@ -4,11 +4,10 @@ Handles long-term storage of metrics, costs, and analytics data
 """
 
 import asyncio
-import time
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any, Union
-from dataclasses import dataclass, asdict
 import json
+import time
+from dataclasses import asdict, dataclass
+from typing import Any, Dict, List, Optional
 
 import structlog
 
@@ -18,9 +17,12 @@ logger = structlog.get_logger(__name__)
 try:
     import clickhouse_connect
     from clickhouse_driver import Client as ClickHouseDriver
+
     CLICKHOUSE_AVAILABLE = True
 except ImportError:
-    logger.warning("ClickHouse drivers not available - install clickhouse-driver and clickhouse-connect")
+    logger.warning(
+        "ClickHouse drivers not available - install clickhouse-driver and clickhouse-connect"
+    )
     CLICKHOUSE_AVAILABLE = False
     clickhouse_connect = None
     ClickHouseDriver = None
@@ -29,6 +31,7 @@ except ImportError:
 @dataclass
 class SystemMetricsRecord:
     """System metrics record for ClickHouse storage"""
+
     timestamp: float
     memory_mb: float
     cpu_utilization: float
@@ -36,7 +39,7 @@ class SystemMetricsRecord:
     network_bytes_sent: float
     network_bytes_recv: float
     uptime_seconds: float
-    
+
     def to_dict(self) -> Dict:
         return asdict(self)
 
@@ -44,6 +47,7 @@ class SystemMetricsRecord:
 @dataclass
 class CostEventRecord:
     """Cost event record for ClickHouse storage"""
+
     timestamp: float
     category: str
     cost_usd: float
@@ -54,7 +58,7 @@ class CostEventRecord:
     session_id: Optional[str] = None
     request_id: Optional[str] = None
     details: Optional[str] = None  # JSON string
-    
+
     def to_dict(self) -> Dict:
         return asdict(self)
 
@@ -62,6 +66,7 @@ class CostEventRecord:
 @dataclass
 class AdaptiveMetricsRecord:
     """Adaptive routing metrics record for ClickHouse storage"""
+
     timestamp: float
     routing_arm: str
     success: bool
@@ -71,51 +76,54 @@ class AdaptiveMetricsRecord:
     query_complexity: Optional[float] = None
     bandit_confidence: Optional[float] = None
     reward_score: Optional[float] = None
-    
+
     def to_dict(self) -> Dict:
         return asdict(self)
 
 
 class ClickHouseManager:
     """ClickHouse cold storage manager for historical data"""
-    
-    def __init__(self, 
-                 host: str = "localhost",
-                 port: int = 8123,
-                 database: str = "ai_search_metrics",
-                 username: str = "default",
-                 password: str = ""):
-        
+
+    def __init__(
+        self,
+        host: str = "localhost",
+        port: int = 8123,
+        database: str = "ai_search_metrics",
+        username: str = "default",
+        password: str = "",
+    ):
+
         self.host = host
         self.port = port
         self.database = database
         self.username = username
         self.password = password
-        
+
         self.client = None
         self.async_client = None
         self.connected = False
-        
+
         # Batch processing settings
         self.batch_size = 1000
         self.flush_interval = 300  # 5 minutes
-        
+
         # In-memory buffers for batch processing
         self.system_metrics_buffer: List[SystemMetricsRecord] = []
         self.cost_events_buffer: List[CostEventRecord] = []
         self.adaptive_metrics_buffer: List[AdaptiveMetricsRecord] = []
-        
+
         self.last_flush_time = time.time()
-        
-        logger.info("clickhouse_manager_initialized", 
-                   host=host, port=port, database=database)
-    
+
+        logger.info(
+            "clickhouse_manager_initialized", host=host, port=port, database=database
+        )
+
     async def initialize(self) -> bool:
         """Initialize ClickHouse connection and create tables"""
         if not CLICKHOUSE_AVAILABLE:
             logger.warning("clickhouse_not_available_using_fallback")
             return False
-        
+
         try:
             # Create connection
             self.client = clickhouse_connect.get_client(
@@ -125,31 +133,31 @@ class ClickHouseManager:
                 username=self.username,
                 password=self.password,
                 connect_timeout=10,
-                send_receive_timeout=30
+                send_receive_timeout=30,
             )
-            
+
             # Test connection
             result = self.client.command("SELECT 1")
-            
+
             # Create database if it doesn't exist
             await self._create_database()
-            
+
             # Create tables
             await self._create_tables()
-            
+
             self.connected = True
             logger.info("clickhouse_connection_established")
-            
+
             # Start background flush task
             asyncio.create_task(self._background_flush_task())
-            
+
             return True
-            
+
         except Exception as e:
             logger.error("clickhouse_connection_failed", error=str(e))
             self.connected = False
             return False
-    
+
     async def _create_database(self):
         """Create database if it doesn't exist"""
         try:
@@ -157,10 +165,10 @@ class ClickHouseManager:
             logger.info("clickhouse_database_created", database=self.database)
         except Exception as e:
             logger.error("clickhouse_database_creation_failed", error=str(e))
-    
+
     async def _create_tables(self):
         """Create ClickHouse tables for metrics storage"""
-        
+
         # System metrics table
         system_metrics_sql = """
         CREATE TABLE IF NOT EXISTS system_metrics (
@@ -177,7 +185,7 @@ class ClickHouseManager:
         ORDER BY timestamp
         TTL timestamp + INTERVAL 90 DAY
         """
-        
+
         # Cost events table
         cost_events_sql = """
         CREATE TABLE IF NOT EXISTS cost_events (
@@ -197,7 +205,7 @@ class ClickHouseManager:
         ORDER BY (timestamp, category, provider)
         TTL timestamp + INTERVAL 365 DAY
         """
-        
+
         # Adaptive routing metrics table
         adaptive_metrics_sql = """
         CREATE TABLE IF NOT EXISTS adaptive_metrics (
@@ -216,7 +224,7 @@ class ClickHouseManager:
         ORDER BY (timestamp, routing_arm)
         TTL timestamp + INTERVAL 180 DAY
         """
-        
+
         # User session summary table (materialized view)
         user_sessions_sql = """
         CREATE TABLE IF NOT EXISTS user_sessions (
@@ -232,30 +240,30 @@ class ClickHouseManager:
         ORDER BY (date, user_id)
         TTL date + INTERVAL 365 DAY
         """
-        
+
         try:
             self.client.command(system_metrics_sql)
             self.client.command(cost_events_sql)
             self.client.command(adaptive_metrics_sql)
             self.client.command(user_sessions_sql)
-            
+
             logger.info("clickhouse_tables_created")
-            
+
         except Exception as e:
             logger.error("clickhouse_table_creation_failed", error=str(e))
-    
+
     async def record_system_metrics(self, metrics: Dict[str, Any]):
         """Record system metrics for cold storage"""
         if not self.connected:
             return
-        
+
         try:
             # Extract system metrics from comprehensive metrics
             system_data = metrics.get("system", {})
             process_data = system_data.get("process", {})
             network_data = system_data.get("network", {})
             cache_data = metrics.get("cache", {})
-            
+
             record = SystemMetricsRecord(
                 timestamp=metrics.get("collection_timestamp", time.time()),
                 memory_mb=process_data.get("memory_mb", 0),
@@ -263,29 +271,31 @@ class ClickHouseManager:
                 cache_hit_rate=cache_data.get("hit_rate", 0),
                 network_bytes_sent=network_data.get("bytes_sent_mb", 0),
                 network_bytes_recv=network_data.get("bytes_recv_mb", 0),
-                uptime_seconds=system_data.get("uptime_seconds", 0)
+                uptime_seconds=system_data.get("uptime_seconds", 0),
             )
-            
+
             self.system_metrics_buffer.append(record)
             await self._check_flush()
-            
+
         except Exception as e:
             logger.error("system_metrics_recording_failed", error=str(e))
-    
-    async def record_cost_event(self, 
-                               category: str,
-                               cost_usd: float,
-                               provider: str,
-                               model: Optional[str] = None,
-                               tokens: Optional[int] = None,
-                               user_id: Optional[str] = None,
-                               session_id: Optional[str] = None,
-                               request_id: Optional[str] = None,
-                               details: Optional[Dict] = None):
+
+    async def record_cost_event(
+        self,
+        category: str,
+        cost_usd: float,
+        provider: str,
+        model: Optional[str] = None,
+        tokens: Optional[int] = None,
+        user_id: Optional[str] = None,
+        session_id: Optional[str] = None,
+        request_id: Optional[str] = None,
+        details: Optional[Dict] = None,
+    ):
         """Record cost event for cold storage"""
         if not self.connected:
             return
-        
+
         try:
             record = CostEventRecord(
                 timestamp=time.time(),
@@ -297,28 +307,30 @@ class ClickHouseManager:
                 user_id=user_id,
                 session_id=session_id,
                 request_id=request_id,
-                details=json.dumps(details) if details else None
+                details=json.dumps(details) if details else None,
             )
-            
+
             self.cost_events_buffer.append(record)
             await self._check_flush()
-            
+
         except Exception as e:
             logger.error("cost_event_recording_failed", error=str(e))
-    
-    async def record_adaptive_metrics(self,
-                                     routing_arm: str,
-                                     success: bool,
-                                     response_time: float,
-                                     cost_usd: float,
-                                     user_id: Optional[str] = None,
-                                     query_complexity: Optional[float] = None,
-                                     bandit_confidence: Optional[float] = None,
-                                     reward_score: Optional[float] = None):
+
+    async def record_adaptive_metrics(
+        self,
+        routing_arm: str,
+        success: bool,
+        response_time: float,
+        cost_usd: float,
+        user_id: Optional[str] = None,
+        query_complexity: Optional[float] = None,
+        bandit_confidence: Optional[float] = None,
+        reward_score: Optional[float] = None,
+    ):
         """Record adaptive routing metrics for cold storage"""
         if not self.connected:
             return
-        
+
         try:
             record = AdaptiveMetricsRecord(
                 timestamp=time.time(),
@@ -329,32 +341,33 @@ class ClickHouseManager:
                 user_id=user_id,
                 query_complexity=query_complexity,
                 bandit_confidence=bandit_confidence,
-                reward_score=reward_score
+                reward_score=reward_score,
             )
-            
+
             self.adaptive_metrics_buffer.append(record)
             await self._check_flush()
-            
+
         except Exception as e:
             logger.error("adaptive_metrics_recording_failed", error=str(e))
-    
+
     async def _check_flush(self):
         """Check if buffers need flushing"""
-        total_records = (len(self.system_metrics_buffer) + 
-                        len(self.cost_events_buffer) + 
-                        len(self.adaptive_metrics_buffer))
-        
+        total_records = (
+            len(self.system_metrics_buffer)
+            + len(self.cost_events_buffer)
+            + len(self.adaptive_metrics_buffer)
+        )
+
         time_since_flush = time.time() - self.last_flush_time
-        
-        if (total_records >= self.batch_size or 
-            time_since_flush >= self.flush_interval):
+
+        if total_records >= self.batch_size or time_since_flush >= self.flush_interval:
             await self._flush_buffers()
-    
+
     async def _flush_buffers(self):
         """Flush all buffers to ClickHouse"""
         if not self.connected:
             return
-        
+
         try:
             # Flush system metrics
             if self.system_metrics_buffer:
@@ -362,26 +375,26 @@ class ClickHouseManager:
                 self.client.insert("system_metrics", data)
                 logger.debug("system_metrics_flushed", count=len(data))
                 self.system_metrics_buffer.clear()
-            
+
             # Flush cost events
             if self.cost_events_buffer:
                 data = [record.to_dict() for record in self.cost_events_buffer]
                 self.client.insert("cost_events", data)
                 logger.debug("cost_events_flushed", count=len(data))
                 self.cost_events_buffer.clear()
-            
+
             # Flush adaptive metrics
             if self.adaptive_metrics_buffer:
                 data = [record.to_dict() for record in self.adaptive_metrics_buffer]
                 self.client.insert("adaptive_metrics", data)
                 logger.debug("adaptive_metrics_flushed", count=len(data))
                 self.adaptive_metrics_buffer.clear()
-            
+
             self.last_flush_time = time.time()
-            
+
         except Exception as e:
             logger.error("buffer_flush_failed", error=str(e))
-    
+
     async def _background_flush_task(self):
         """Background task to periodically flush buffers"""
         while self.connected:
@@ -390,25 +403,27 @@ class ClickHouseManager:
                 await self._flush_buffers()
             except Exception as e:
                 logger.error("background_flush_error", error=str(e))
-    
-    async def get_cost_analytics(self, 
-                                days: int = 30,
-                                user_id: Optional[str] = None,
-                                category: Optional[str] = None) -> Dict[str, Any]:
+
+    async def get_cost_analytics(
+        self,
+        days: int = 30,
+        user_id: Optional[str] = None,
+        category: Optional[str] = None,
+    ) -> Dict[str, Any]:
         """Get cost analytics from ClickHouse"""
         if not self.connected:
             return {"error": "ClickHouse not connected"}
-        
+
         try:
             where_clauses = [f"timestamp >= now() - INTERVAL {days} DAY"]
-            
+
             if user_id:
                 where_clauses.append(f"user_id = '{user_id}'")
             if category:
                 where_clauses.append(f"category = '{category}'")
-            
+
             where_clause = " AND ".join(where_clauses)
-            
+
             # Total costs by category
             category_sql = f"""
             SELECT 
@@ -422,7 +437,7 @@ class ClickHouseManager:
             GROUP BY category, provider
             ORDER BY total_cost DESC
             """
-            
+
             # Daily cost trends
             trends_sql = f"""
             SELECT 
@@ -435,7 +450,7 @@ class ClickHouseManager:
             ORDER BY date DESC
             LIMIT 30
             """
-            
+
             # Top users by cost
             users_sql = f"""
             SELECT 
@@ -448,20 +463,20 @@ class ClickHouseManager:
             ORDER BY total_cost DESC
             LIMIT 20
             """
-            
+
             category_data = self.client.query(category_sql).result_rows
             trends_data = self.client.query(trends_sql).result_rows
             users_data = self.client.query(users_sql).result_rows
-            
+
             return {
                 "period_days": days,
                 "category_breakdown": [
                     {
                         "category": row[0],
-                        "provider": row[1], 
+                        "provider": row[1],
                         "total_cost": float(row[2]),
                         "request_count": int(row[3]),
-                        "avg_cost": float(row[4])
+                        "avg_cost": float(row[4]),
                     }
                     for row in category_data
                 ],
@@ -469,7 +484,7 @@ class ClickHouseManager:
                     {
                         "date": str(row[0]),
                         "daily_cost": float(row[1]),
-                        "daily_requests": int(row[2])
+                        "daily_requests": int(row[2]),
                     }
                     for row in trends_data
                 ],
@@ -477,21 +492,21 @@ class ClickHouseManager:
                     {
                         "user_id": row[0],
                         "total_cost": float(row[1]),
-                        "request_count": int(row[2])
+                        "request_count": int(row[2]),
                     }
                     for row in users_data
-                ]
+                ],
             }
-            
+
         except Exception as e:
             logger.error("cost_analytics_query_failed", error=str(e))
             return {"error": str(e)}
-    
+
     async def get_performance_analytics(self, days: int = 7) -> Dict[str, Any]:
         """Get performance analytics from ClickHouse"""
         if not self.connected:
             return {"error": "ClickHouse not connected"}
-        
+
         try:
             # System performance trends
             system_sql = f"""
@@ -506,7 +521,7 @@ class ClickHouseManager:
             ORDER BY hour DESC
             LIMIT 168  -- 7 days * 24 hours
             """
-            
+
             # Adaptive routing performance
             adaptive_sql = f"""
             SELECT 
@@ -521,10 +536,10 @@ class ClickHouseManager:
             GROUP BY routing_arm
             ORDER BY request_count DESC
             """
-            
+
             system_data = self.client.query(system_sql).result_rows
             adaptive_data = self.client.query(adaptive_sql).result_rows
-            
+
             return {
                 "period_days": days,
                 "system_trends": [
@@ -532,7 +547,7 @@ class ClickHouseManager:
                         "hour": str(row[0]),
                         "avg_memory_mb": float(row[1]),
                         "avg_cpu_utilization": float(row[2]),
-                        "avg_cache_hit_rate": float(row[3])
+                        "avg_cache_hit_rate": float(row[3]),
                     }
                     for row in system_data
                 ],
@@ -543,30 +558,30 @@ class ClickHouseManager:
                         "avg_response_time": float(row[2]),
                         "success_rate": float(row[3]),
                         "avg_cost": float(row[4]),
-                        "avg_reward": float(row[5]) if row[5] else None
+                        "avg_reward": float(row[5]) if row[5] else None,
                     }
                     for row in adaptive_data
-                ]
+                ],
             }
-            
+
         except Exception as e:
             logger.error("performance_analytics_query_failed", error=str(e))
             return {"error": str(e)}
-    
+
     async def cleanup(self):
         """Cleanup ClickHouse connection"""
         if self.connected:
             try:
                 # Flush remaining data
                 await self._flush_buffers()
-                
+
                 # Close connection
                 if self.client:
                     self.client.close()
-                
+
                 self.connected = False
                 logger.info("clickhouse_connection_closed")
-                
+
             except Exception as e:
                 logger.error("clickhouse_cleanup_failed", error=str(e))
 
@@ -580,26 +595,26 @@ def get_clickhouse_manager() -> Optional[ClickHouseManager]:
     return _clickhouse_manager
 
 
-async def initialize_clickhouse_manager(host: str = "localhost",
-                                       port: int = 8123,
-                                       database: str = "ai_search_metrics",
-                                       username: str = "default",
-                                       password: str = "") -> Optional[ClickHouseManager]:
+async def initialize_clickhouse_manager(
+    host: str = "localhost",
+    port: int = 8123,
+    database: str = "ai_search_metrics",
+    username: str = "default",
+    password: str = "",
+) -> Optional[ClickHouseManager]:
     """Initialize ClickHouse manager"""
     global _clickhouse_manager
-    
+
     _clickhouse_manager = ClickHouseManager(
-        host=host,
-        port=port,
-        database=database,
-        username=username,
-        password=password
+        host=host, port=port, database=database, username=username, password=password
     )
-    
+
     success = await _clickhouse_manager.initialize()
-    
+
     if not success:
-        logger.warning("clickhouse_initialization_failed_continuing_without_cold_storage")
+        logger.warning(
+            "clickhouse_initialization_failed_continuing_without_cold_storage"
+        )
         _clickhouse_manager = None
-    
+
     return _clickhouse_manager

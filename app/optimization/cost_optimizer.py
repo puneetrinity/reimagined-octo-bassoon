@@ -8,14 +8,13 @@ import asyncio
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 
-import numpy as np
 import structlog
 
 from app.cache.redis_client import CacheManager
 from app.core.config import API_COSTS, MODEL_ASSIGNMENTS, get_settings
-from app.models.manager import ModelManager, ModelResult
+from app.models.manager import ModelManager
 
 logger = structlog.get_logger(__name__)
 
@@ -629,9 +628,9 @@ class CostOptimizer:
             "suggestions": suggestions,
             "optimization_metadata": {
                 "strategy_used": strategy.value,
-                "budget_status": "low"
-                if budget.should_use_cheaper_models()
-                else "normal",
+                "budget_status": (
+                    "low" if budget.should_use_cheaper_models() else "normal"
+                ),
                 "tier": user_tier,
             },
         }

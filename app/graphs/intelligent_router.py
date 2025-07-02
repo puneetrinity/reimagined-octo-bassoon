@@ -9,7 +9,7 @@ import json
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 import structlog
@@ -19,8 +19,6 @@ from sklearn.metrics.pairwise import cosine_similarity
 from app.cache.redis_client import CacheManager
 from app.core.config import get_settings
 from app.graphs.base import GraphState, GraphType
-from app.graphs.chat_graph import ChatGraph
-from app.graphs.search_graph import SearchGraph
 from app.models.manager import ModelManager
 
 logger = structlog.get_logger(__name__)

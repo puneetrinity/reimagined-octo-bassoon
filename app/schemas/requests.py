@@ -5,7 +5,7 @@ Pydantic models for request validation
 """
 
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -14,15 +14,11 @@ class Constraints(BaseModel):
     """Request constraints"""
 
     max_cost: float | None = Field(0.05, description="Maximum cost in INR")
-    max_time: float | None = Field(
-        5.0, description="Maximum execution time in seconds"
-    )
+    max_time: float | None = Field(5.0, description="Maximum execution time in seconds")
     quality_requirement: str | None = Field(
         "balanced", description="Quality level: minimal, balanced, high, premium"
     )
-    force_local_only: bool | None = Field(
-        False, description="Force local models only"
-    )
+    force_local_only: bool | None = Field(False, description="Force local models only")
 
     @field_validator("quality_requirement")
     def validate_quality(cls, v):
@@ -158,13 +154,14 @@ class SearchRequest(BaseModel):
 
 class AdvancedSearchRequest(BaseModel):
     """Advanced search request model for /api/v1/search/advanced endpoint."""
-    
+
     query: str = Field(..., min_length=1, max_length=500, description="Search query")
     max_results: Optional[int] = Field(
         10, ge=1, le=50, description="Maximum number of results"
     )
     search_type: Optional[str] = Field(
-        "comprehensive", description="Type of search: web, academic, news, comprehensive"
+        "comprehensive",
+        description="Type of search: web, academic, news, comprehensive",
     )
     quality_requirement: Optional[str] = Field(
         "high", description="Search quality: minimal, balanced, high, premium"
@@ -206,7 +203,6 @@ class AdvancedSearchRequest(BaseModel):
         if v not in allowed:
             raise ValueError(f"Quality requirement must be one of: {allowed}")
         return v
-
 
 
 class ResearchRequest(BaseModel):

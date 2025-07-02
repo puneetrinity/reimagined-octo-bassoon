@@ -4,14 +4,12 @@ Advanced multi-provider search system with smart routing and cost optimization
 """
 
 import asyncio
-import json
 import logging
 import time
 from abc import ABC, abstractmethod
 from dataclasses import asdict, dataclass
 from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple
-from urllib.parse import quote_plus
 
 import aiohttp
 
@@ -157,9 +155,11 @@ class BraveSearchProvider(BaseSearchProvider):
                         snippet=item.get("description", ""),
                         provider="brave",
                         confidence_score=self.calculate_confidence(item),
-                        cost=self.cost_per_query / len(web_results)
-                        if web_results
-                        else self.cost_per_query,
+                        cost=(
+                            self.cost_per_query / len(web_results)
+                            if web_results
+                            else self.cost_per_query
+                        ),
                     )
                     results.append(result)
 
@@ -193,7 +193,6 @@ class ScrapingBeeProvider(BaseSearchProvider):
             import json
 
             import aiohttp
-            from bs4 import BeautifulSoup
 
             params = {
                 "api_key": self.api_key,
@@ -362,7 +361,7 @@ class DuckDuckGoProvider(BaseSearchProvider):
             result = SearchResult(
                 title=f"DuckDuckGo Result {i+1}",
                 url=f"https://example.com/result{i+1}",
-                snippet=f"This is a sample result snippet from DuckDuckGo search.",
+                snippet="This is a sample result snippet from DuckDuckGo search.",
                 provider="duckduckgo",
                 confidence_score=0.6,
                 cost=0.0,

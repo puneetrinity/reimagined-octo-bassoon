@@ -2,9 +2,10 @@
 OllamaClient - Async HTTP client for Ollama API communication.
 Handles model loading, inference, and health checking.
 """
+
 import asyncio
-import time
 import json
+import time
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any, AsyncGenerator, Dict, List, Optional
@@ -19,6 +20,7 @@ logger = get_logger("models.ollama_client")
 
 class ModelStatus(str, Enum):
     """Model loading status."""
+
     UNKNOWN = "unknown"
     LOADING = "loading"
     READY = "ready"
@@ -29,6 +31,7 @@ class ModelStatus(str, Enum):
 @dataclass
 class ModelResult:
     """Result from model generation."""
+
     success: bool
     text: str = ""
     cost: float = 0.0  # Always 0 for local models
@@ -42,20 +45,14 @@ class ModelResult:
 
 class GenerationRequest(BaseModel):
     """Request parameters for text generation."""
+
     model: str = Field(..., description="Model name")
     prompt: str = Field(..., description="Input prompt")
-    max_tokens: Optional[int] = Field(
-        300,
-        description="Maximum tokens to generate"
-    )
+    max_tokens: Optional[int] = Field(300, description="Maximum tokens to generate")
     temperature: Optional[float] = Field(
-        0.7, ge=0.0, le=2.0, description="Sampling temperature")
-    top_p: Optional[float] = Field(
-        0.9,
-        ge=0.0,
-        le=1.0,
-        description="Top-p sampling"
+        0.7, ge=0.0, le=2.0, description="Sampling temperature"
     )
+    top_p: Optional[float] = Field(0.9, ge=0.0, le=1.0, description="Top-p sampling")
     top_k: Optional[int] = Field(40, ge=1, description="Top-k sampling")
     stop: Optional[List[str]] = Field(None, description="Stop sequences")
     stream: bool = Field(False, description="Enable streaming response")
@@ -63,6 +60,7 @@ class GenerationRequest(BaseModel):
 
 class StreamingChunk(BaseModel):
     """Streaming response chunk."""
+
     text: str
     done: bool = False
     total_duration: Optional[int] = None
@@ -78,7 +76,7 @@ class OllamaException(Exception):
         self,
         message: str,
         status_code: Optional[int] = None,
-        model_name: Optional[str] = None
+        model_name: Optional[str] = None,
     ):
         self.status_code = status_code
         self.model_name = model_name
@@ -102,9 +100,9 @@ class OllamaClient:
         base_url: str = "http://localhost:11434",
         timeout: float = 60.0,
         max_retries: int = 3,
-        retry_delay: float = 1.0
+        retry_delay: float = 1.0,
     ):
-        self.base_url = base_url.rstrip('/')
+        self.base_url = base_url.rstrip("/")
         self.timeout = timeout
         self.max_retries = max_retries
         self.retry_delay = retry_delay
@@ -112,11 +110,8 @@ class OllamaClient:
         # HTTP client configuration
         self.client_config = {
             "timeout": httpx.Timeout(timeout),
-            "limits": httpx.Limits(
-                max_connections=10,
-                max_keepalive_connections=5
-            ),
-            "follow_redirects": True
+            "limits": httpx.Limits(max_connections=10, max_keepalive_connections=5),
+            "follow_redirects": True,
         }
 
         self._client: Optional[httpx.AsyncClient] = None
@@ -129,7 +124,7 @@ class OllamaClient:
             base_url=self.base_url,
             timeout=timeout,
             max_retries=max_retries,
-            correlation_id=get_correlation_id()
+            correlation_id=get_correlation_id(),
         )
 
     async def __aenter__(self):
@@ -179,7 +174,7 @@ class OllamaClient:
             await self.initialize()
             response = await self._client.get(
                 f"{self.base_url}/api/tags",
-                timeout=10.0  # Shorter timeout for health checks
+                timeout=10.0,  # Shorter timeout for health checks
             )
 
             healthy = response.status_code == 200
@@ -189,7 +184,7 @@ class OllamaClient:
                 "Ollama health check completed",
                 healthy=healthy,
                 status_code=response.status_code,
-                correlation_id=correlation_id
+                correlation_id=correlation_id,
             )
 
             return healthy
@@ -199,7 +194,7 @@ class OllamaClient:
                 "Ollama connection issue during health check",
                 error=str(e),
                 error_type=type(e).__name__,
-                correlation_id=correlation_id
+                correlation_id=correlation_id,
             )
             self._health_cache = {"healthy": False, "last_check": now}
             return False
@@ -207,16 +202,13 @@ class OllamaClient:
             logger.error(
                 "Ollama health check failed",
                 error=str(e),
-                correlation_id=correlation_id
+                correlation_id=correlation_id,
             )
             self._health_cache = {"healthy": False, "last_check": now}
             return False
 
     @log_performance("ollama_list_models")
-    async def list_models(
-        self,
-        force_refresh: bool = False
-    ) -> List[Dict[str, Any]]:
+    async def list_models(self, force_refresh: bool = False) -> List[Dict[str, Any]]:
         """
         List all available models in Ollama.
 
@@ -232,8 +224,9 @@ class OllamaClient:
         if not force_refresh and "models" in self._model_cache:
             cache_time = self._model_cache.get("cache_time", 0)
             if time.time() - cache_time < 300:  # Cache for 5 minutes
-                logger.debug("Returning cached model list",
-                             correlation_id=correlation_id)
+                logger.debug(
+                    "Returning cached model list", correlation_id=correlation_id
+                )
                 return self._model_cache["models"]
 
         try:
@@ -243,24 +236,19 @@ class OllamaClient:
             models_data = response.get("models", [])
 
             # Cache the results
-            self._model_cache = {
-                "models": models_data,
-                "cache_time": time.time()
-            }
+            self._model_cache = {"models": models_data, "cache_time": time.time()}
 
             logger.info(
                 "Models listed successfully",
                 model_count=len(models_data),
-                correlation_id=correlation_id
+                correlation_id=correlation_id,
             )
 
             return models_data
 
         except Exception as e:
             logger.error(
-                "Failed to list models",
-                error=str(e),
-                correlation_id=correlation_id
+                "Failed to list models", error=str(e), correlation_id=correlation_id
             )
             raise OllamaException(f"Failed to list models: {e}")
 
@@ -278,9 +266,7 @@ class OllamaClient:
         correlation_id = get_correlation_id()
 
         logger.info(
-            "Starting model pull",
-            model_name=model_name,
-            correlation_id=correlation_id
+            "Starting model pull", model_name=model_name, correlation_id=correlation_id
         )
 
         try:
@@ -288,9 +274,7 @@ class OllamaClient:
 
             # Stream the pull response to monitor progress
             async with self._client.stream(
-                "POST",
-                f"{self.base_url}/api/pull",
-                json={"name": model_name}
+                "POST", f"{self.base_url}/api/pull", json={"name": model_name}
             ) as response:
 
                 if response.status_code != 200:
@@ -298,7 +282,7 @@ class OllamaClient:
                     raise OllamaException(
                         f"Pull failed with status {response.status_code}: {error_text}",
                         response.status_code,
-                        model_name
+                        model_name,
                     )
 
                 # Process streaming response
@@ -311,7 +295,7 @@ class OllamaClient:
                                     "Pull progress",
                                     model_name=model_name,
                                     status=progress_data["status"],
-                                    correlation_id=correlation_id
+                                    correlation_id=correlation_id,
                                 )
                         except json.JSONDecodeError:
                             continue
@@ -322,7 +306,7 @@ class OllamaClient:
             logger.info(
                 "Model pull completed successfully",
                 model_name=model_name,
-                correlation_id=correlation_id
+                correlation_id=correlation_id,
             )
 
             return True
@@ -332,10 +316,11 @@ class OllamaClient:
                 "Model pull failed",
                 model_name=model_name,
                 error=str(e),
-                correlation_id=correlation_id
+                correlation_id=correlation_id,
             )
             raise OllamaException(
-                f"Failed to pull model {model_name}: {e}", model_name=model_name)
+                f"Failed to pull model {model_name}: {e}", model_name=model_name
+            )
 
     @log_performance("ollama_check_model")
     async def check_model_status(self, model_name: str) -> ModelStatus:
@@ -349,7 +334,9 @@ class OllamaClient:
             ModelStatus: Current status of the model
         """
         correlation_id = get_correlation_id()
-        logger.debug(f"[OllamaClient.check_model_status] Entered for model: {model_name}")
+        logger.debug(
+            f"[OllamaClient.check_model_status] Entered for model: {model_name}"
+        )
 
         try:
             models = await self.list_models()
@@ -362,7 +349,7 @@ class OllamaClient:
                         # This avoids creating unnecessary generation requests
                         url = f"{self.base_url}/api/show"
                         payload = {"name": model_name}
-                        
+
                         async with httpx.AsyncClient(timeout=5.0) as client:
                             response = await client.post(url, json=payload)
                             if response.status_code == 200:
@@ -374,7 +361,7 @@ class OllamaClient:
                             "Model status checked",
                             model_name=model_name,
                             status=status.value,
-                            correlation_id=correlation_id
+                            correlation_id=correlation_id,
                         )
 
                         return status
@@ -391,7 +378,7 @@ class OllamaClient:
                 "Failed to check model status",
                 model_name=model_name,
                 error=str(e),
-                correlation_id=correlation_id
+                correlation_id=correlation_id,
             )
             return ModelStatus.ERROR
 
@@ -402,7 +389,7 @@ class OllamaClient:
         prompt: str,
         max_tokens: int = 300,
         temperature: float = 0.7,
-        **kwargs
+        **kwargs,
     ) -> ModelResult:
         """
         Generate text using the specified model with retry logic.
@@ -426,24 +413,20 @@ class OllamaClient:
             prompt_length=len(prompt),
             max_tokens=max_tokens,
             temperature=temperature,
-            correlation_id=correlation_id
+            correlation_id=correlation_id,
         )
 
         await self.initialize()
-        logger.debug(
-            "Prompt sent to LLM",
-            prompt=prompt,
-            model_name=model_name
-        )
+        logger.debug("Prompt sent to LLM", prompt=prompt, model_name=model_name)
         request_data = {
             "model": model_name,
             "prompt": prompt,
             "options": {
                 "num_predict": max_tokens,
                 "temperature": temperature,
-                **kwargs
+                **kwargs,
             },
-            "stream": False
+            "stream": False,
         }
 
         logger.debug(
@@ -453,30 +436,32 @@ class OllamaClient:
             max_tokens=max_tokens,
             temperature=temperature,
             kwargs=kwargs,
-            correlation_id=correlation_id
+            correlation_id=correlation_id,
         )
 
         for attempt in range(self.max_retries + 1):
             try:
                 logger.debug(
-                    f"[LLM] Attempt {attempt+1}/{self.max_retries+1} | Model: {model_name} | Prompt: {prompt}")
+                    f"[LLM] Attempt {attempt+1}/{self.max_retries+1} | Model: {model_name} | Prompt: {prompt}"
+                )
                 start_time = time.monotonic()
                 response = await self._make_request(
-                    "POST",
-                    "/api/generate",
-                    json=request_data
+                    "POST", "/api/generate", json=request_data
                 )
                 execution_time = time.monotonic() - start_time
                 logger.debug(
-                    f"[LLM] Response: {response} | Time: {execution_time:.2f}s")
+                    f"[LLM] Response: {response} | Time: {execution_time:.2f}s"
+                )
 
                 # Extract response text
                 response_text = response.get("response", "")
                 logger.debug(f"Raw Ollama response: {response}")
-                
+
                 # Better empty response handling
                 if not response_text or response_text.strip() == "":
-                    logger.error(f"Empty response from Ollama for model {model_name}. Raw response: {response}")
+                    logger.error(
+                        f"Empty response from Ollama for model {model_name}. Raw response: {response}"
+                    )
                     response_text = f"Hello! I'm ready to help you. Could you please rephrase your question? (Model: {model_name})"
 
                 # Calculate performance metrics
@@ -498,10 +483,13 @@ class OllamaClient:
                     tokens_per_second=tokens_per_second,
                     metadata={
                         "total_duration": total_duration / 1_000_000_000,
-                        "load_duration": response.get("load_duration", 0) / 1_000_000_000,
-                        "prompt_eval_duration": response.get("prompt_eval_duration", 0) / 1_000_000_000,
-                        "eval_duration": response.get("eval_duration", 0) / 1_000_000_000,
-                    }
+                        "load_duration": response.get("load_duration", 0)
+                        / 1_000_000_000,
+                        "prompt_eval_duration": response.get("prompt_eval_duration", 0)
+                        / 1_000_000_000,
+                        "eval_duration": response.get("eval_duration", 0)
+                        / 1_000_000_000,
+                    },
                 )
 
                 logger.info(
@@ -510,7 +498,7 @@ class OllamaClient:
                     execution_time=execution_time,
                     tokens_generated=eval_count,
                     tokens_per_second=round(tokens_per_second, 2),
-                    correlation_id=correlation_id
+                    correlation_id=correlation_id,
                 )
 
                 return result
@@ -521,13 +509,14 @@ class OllamaClient:
 
         # Fallback: always return a ModelResult, even on failure
         logger.error(
-            f"[LLM] All {self.max_retries+1} attempts failed. Returning fallback ModelResult.")
+            f"[LLM] All {self.max_retries+1} attempts failed. Returning fallback ModelResult."
+        )
         return ModelResult(
             success=False,
             text="",
             execution_time=0.0,
             model_used=model_name,
-            error=str(last_exception) if last_exception else "Empty response"
+            error=str(last_exception) if last_exception else "Empty response",
         )
 
     async def generate_stream(
@@ -536,7 +525,7 @@ class OllamaClient:
         prompt: str,
         max_tokens: int = 300,
         temperature: float = 0.7,
-        **kwargs
+        **kwargs,
     ) -> AsyncGenerator[StreamingChunk, None]:
         """
         Generate text with streaming response.
@@ -557,13 +546,14 @@ class OllamaClient:
             "Starting streaming generation",
             model_name=model_name,
             prompt_length=len(prompt),
-            correlation_id=correlation_id
+            correlation_id=correlation_id,
         )
 
         try:
             await self.initialize()
-            logger.debug("Prompt sent to LLM (stream)",
-                         prompt=prompt, model_name=model_name)
+            logger.debug(
+                "Prompt sent to LLM (stream)", prompt=prompt, model_name=model_name
+            )
 
             request_data = {
                 "model": model_name,
@@ -571,15 +561,13 @@ class OllamaClient:
                 "options": {
                     "num_predict": max_tokens,
                     "temperature": temperature,
-                    **kwargs
+                    **kwargs,
                 },
-                "stream": True
+                "stream": True,
             }
 
             async with self._client.stream(
-                "POST",
-                f"{self.base_url}/api/generate",
-                json=request_data
+                "POST", f"{self.base_url}/api/generate", json=request_data
             ) as response:
 
                 if response.status_code != 200:
@@ -587,17 +575,14 @@ class OllamaClient:
                     raise OllamaException(
                         f"Streaming generation failed: {error_text}",
                         response.status_code,
-                        model_name
+                        model_name,
                     )
 
                 async for line in response.aiter_lines():
                     if line:
                         try:
                             chunk_data = json.loads(line)
-                            logger.debug(
-                                "Raw LLM stream chunk",
-                                chunk_data=chunk_data
-                            )
+                            logger.debug("Raw LLM stream chunk", chunk_data=chunk_data)
                             text = chunk_data.get("response", "")
                             if not text:
                                 text = "[No response generated]"
@@ -607,7 +592,7 @@ class OllamaClient:
                                 total_duration=chunk_data.get("total_duration"),
                                 load_duration=chunk_data.get("load_duration"),
                                 prompt_eval_count=chunk_data.get("prompt_eval_count"),
-                                eval_count=chunk_data.get("eval_count")
+                                eval_count=chunk_data.get("eval_count"),
                             )
 
                             if chunk_data.get("done"):
@@ -618,7 +603,7 @@ class OllamaClient:
             logger.debug(
                 "Streaming generation completed",
                 model_name=model_name,
-                correlation_id=correlation_id
+                correlation_id=correlation_id,
             )
 
         except Exception as e:
@@ -626,15 +611,12 @@ class OllamaClient:
                 "Streaming generation failed",
                 model_name=model_name,
                 error=str(e),
-                correlation_id=correlation_id
+                correlation_id=correlation_id,
             )
             yield StreamingChunk(text="", done=True)
 
     async def _make_request(
-        self,
-        method: str,
-        endpoint: str,
-        **kwargs
+        self, method: str, endpoint: str, **kwargs
     ) -> Dict[str, Any]:
         """
         Make HTTP request with retry logic and error handling.
@@ -664,14 +646,18 @@ class OllamaClient:
                     raise httpx.HTTPStatusError(
                         f"HTTP {response.status_code}: {error_text}",
                         request=response.request,
-                        response=response
+                        response=response,
                     )
 
-            except (httpx.ConnectError, httpx.TimeoutException, httpx.NetworkError) as e:
+            except (
+                httpx.ConnectError,
+                httpx.TimeoutException,
+                httpx.NetworkError,
+            ) as e:
                 last_exception = e
-                
+
                 if attempt < self.max_retries:
-                    wait_time = self.retry_delay * (2 ** attempt)  # Exponential backoff
+                    wait_time = self.retry_delay * (2**attempt)  # Exponential backoff
 
                     logger.warning(
                         "Connection error, retrying",
@@ -682,7 +668,7 @@ class OllamaClient:
                         wait_time=wait_time,
                         error=str(e),
                         error_type=type(e).__name__,
-                        correlation_id=correlation_id
+                        correlation_id=correlation_id,
                     )
 
                     await asyncio.sleep(wait_time)
@@ -694,7 +680,7 @@ class OllamaClient:
                         attempts=attempt + 1,
                         error=str(e),
                         error_type=type(e).__name__,
-                        correlation_id=correlation_id
+                        correlation_id=correlation_id,
                     )
                     raise OllamaException(f"Connection to Ollama failed: {e}")
 
@@ -702,7 +688,7 @@ class OllamaClient:
                 last_exception = e
 
                 if attempt < self.max_retries:
-                    wait_time = self.retry_delay * (2 ** attempt)  # Exponential backoff
+                    wait_time = self.retry_delay * (2**attempt)  # Exponential backoff
 
                     logger.warning(
                         "Request failed, retrying",
@@ -712,7 +698,7 @@ class OllamaClient:
                         max_retries=self.max_retries,
                         wait_time=wait_time,
                         error=str(e),
-                        correlation_id=correlation_id
+                        correlation_id=correlation_id,
                     )
 
                     await asyncio.sleep(wait_time)
@@ -723,15 +709,12 @@ class OllamaClient:
                         endpoint=endpoint,
                         attempts=attempt + 1,
                         error=str(e),
-                        correlation_id=correlation_id
+                        correlation_id=correlation_id,
                     )
 
         raise last_exception
 
-    async def get_available_model_names(
-        self,
-        force_refresh: bool = False
-    ) -> set[str]:
+    async def get_available_model_names(self, force_refresh: bool = False) -> set[str]:
         """
         Return a set of available model names as reported by Ollama.
         Args:
@@ -750,8 +733,7 @@ class OllamaClient:
 
 # Utility functions
 async def create_ollama_client(
-    base_url: str = "http://localhost:11434",
-    timeout: float = 60.0
+    base_url: str = "http://localhost:11434", timeout: float = 60.0
 ) -> OllamaClient:
     """
     Create and initialize an OllamaClient instance.
@@ -770,11 +752,11 @@ async def create_ollama_client(
 
 # Export main classes
 __all__ = [
-    'OllamaClient',
-    'OllamaException',
-    'ModelResult',
-    'ModelStatus',
-    'GenerationRequest',
-    'StreamingChunk',
-    'create_ollama_client'
+    "OllamaClient",
+    "OllamaException",
+    "ModelResult",
+    "ModelStatus",
+    "GenerationRequest",
+    "StreamingChunk",
+    "create_ollama_client",
 ]

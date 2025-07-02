@@ -16,16 +16,16 @@ def get_ollama_host() -> str:
     """Get the correct Ollama host URL with RunPod deployment support."""
     # Check environment variable first
     ollama_host = os.getenv("OLLAMA_HOST")
-    
+
     if ollama_host:
         # If it's set, use it as-is
         return ollama_host
-    
+
     # Check if we're in RunPod environment
     if os.getenv("RUNPOD_POD_ID") or "runpod" in os.getenv("HOSTNAME", "").lower():
         # Use external Ollama endpoint for RunPod
         return "https://l4vja98so6wvh9-11434.proxy.runpod.net"
-    
+
     # Default to localhost for local development
     return "http://localhost:11434"
 
@@ -49,16 +49,16 @@ class Settings(BaseSettings):
     api_port: int = 8000
     allowed_origins: list[str] = Field(
         default_factory=lambda: (
-            os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:8000").split(",")
+            os.getenv(
+                "ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:8000"
+            ).split(",")
             if os.getenv("ALLOWED_ORIGINS")
             else ["http://localhost:3000", "http://localhost:8000"]
         )
     )
 
     # Ollama Configuration
-    ollama_host: str = Field(
-        default_factory=lambda: get_ollama_host()
-    )
+    ollama_host: str = Field(default_factory=lambda: get_ollama_host())
     ollama_timeout: int = 60
     ollama_max_retries: int = 3
 
@@ -195,37 +195,38 @@ def get_settings() -> Settings:
 MODEL_ASSIGNMENTS = {
     # Original chat/search tasks
     "simple_classification": "phi3:mini",
-    "qa_and_summary": "phi3:mini", 
+    "qa_and_summary": "phi3:mini",
     "analytical_reasoning": "llama3:8b",
     "deep_research": "llama3:8b",
     "code_tasks": "phi3:mini",
     "multilingual": "llama3:8b",
     "creative_writing": "llama3:8b",
     "conversation": "llama3:8b",
-    
     # Recruitment-specific tasks
     "resume_parsing": "deepseek-llm:7b",
     "bias_detection": "mistral:7b",
-    "matching_logic": "llama3:8b", 
+    "matching_logic": "llama3:8b",
     "conversational_script_generation": "llama3:8b",
     "report_generation": "phi3:mini",
-    
     # Recruitment workflow aliases
     "parsing": "deepseek-llm:7b",
-    "bias_check": "mistral:7b", 
+    "bias_check": "mistral:7b",
     "matching": "llama3:8b",
     "script_gen": "llama3:8b",
-    "summary_report": "phi3:mini"
+    "summary_report": "phi3:mini",
 }
 
 PRIORITY_TIERS = {
-    "T0": ["phi3:mini"],                          # Always loaded (2GB) - reports/simple tasks
-    "T1": ["deepseek-llm:7b", "mistral:7b"],     # Keep warm (14GB) - frequent parsing/bias detection
-    "T2": ["llama3:8b"],                          # Load on demand (8GB) - reasoning/matching tasks
-    "T3": ["tinyllama:latest"]                    # Cold storage - fallback model
+    "T0": ["phi3:mini"],  # Always loaded (2GB) - reports/simple tasks
+    "T1": [
+        "deepseek-llm:7b",
+        "mistral:7b",
+    ],  # Keep warm (14GB) - frequent parsing/bias detection
+    "T2": ["llama3:8b"],  # Load on demand (8GB) - reasoning/matching tasks
+    "T3": ["tinyllama:latest"],  # Cold storage - fallback model
 }
 
-# API costs (in INR) 
+# API costs (in INR)
 API_COSTS = {
     "phi3:mini": 0.0,
     "deepseek-llm:7b": 0.0,
@@ -248,7 +249,7 @@ MODEL_MEMORY_REQUIREMENTS = {
     "qwen2.5:0.5b": 0.5,  # Ultra-fast model from router
 }
 
-# A5000 memory configuration  
+# A5000 memory configuration
 A5000_CONFIG = {
     "total_vram_gb": 24,
     "system_reserve_gb": 4,

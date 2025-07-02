@@ -95,13 +95,14 @@ class BaseAgent(ABC):
         # Use dependency injection if not provided
         if model_manager is None:
             from app.dependencies import get_model_manager
+
             model_manager = get_model_manager()
         self.model_manager = model_manager
         self.cache_manager = cache_manager
         logger.debug(
             "BaseAgent initialized",
             model_manager_id=id(self.model_manager),
-            available_models=list(getattr(self.model_manager, 'models', {}).keys()),
+            available_models=list(getattr(self.model_manager, "models", {}).keys()),
         )
 
     @abstractmethod
@@ -230,9 +231,7 @@ class ResearchAgent(BaseAgent):
 
     def _build_general_research_prompt(self, query: str, depth: str) -> str:
         depth_instructions = {
-            "basic": (
-                "Provide a concise overview with key facts and 2-3 main points."
-            ),
+            "basic": ("Provide a concise overview with key facts and 2-3 main points."),
             "standard": (
                 "Provide a comprehensive analysis with background, "
                 "key findings, and implications."
@@ -628,9 +627,11 @@ class FactCheckAgent(BaseAgent):
                         "verified": verified_count,
                         "disputed": disputed_count,
                         "uncertain": uncertain_count,
-                        "verification_rate": verified_count / len(fact_check_results)
-                        if fact_check_results
-                        else 0.0,
+                        "verification_rate": (
+                            verified_count / len(fact_check_results)
+                            if fact_check_results
+                            else 0.0
+                        ),
                     },
                     "verification_level": verification_level,
                     "overall_reliability": self._calculate_reliability_score(
@@ -932,11 +933,9 @@ class CodeAgent(BaseAgent):
             "task_type": task_type,
             "language": language,
             "line_count": sum(len(block.split("\n")) for block in code_blocks),
-            "complexity": "high"
-            if len(code_blocks) > 1
-            else "medium"
-            if code_blocks
-            else "low",
+            "complexity": (
+                "high" if len(code_blocks) > 1 else "medium" if code_blocks else "low"
+            ),
         }
 
 
@@ -1281,11 +1280,9 @@ class PlanningAgent(BaseAgent):
             "phase_count": len(phases),
             "timeline": timeline_estimate,
             "feasibility": feasibility,
-            "complexity_assessment": "high"
-            if task_count > 15
-            else "medium"
-            if task_count > 8
-            else "low",
+            "complexity_assessment": (
+                "high" if task_count > 15 else "medium" if task_count > 8 else "low"
+            ),
             "full_plan": planning_text,
             "task_type": task_type,
         }
@@ -1761,24 +1758,24 @@ class MultiAgentOrchestrator:
         constraints = constraints or {}
         workflow_id = str(uuid.uuid4())
         start_time = time.time()
-        
+
         logger.info(
             "Starting simplified research workflow",
             question=research_question,
             methodology=methodology,
             workflow_id=workflow_id,
         )
-        
+
         try:
             # Create a basic state for the workflow
             state = GraphState(
                 original_query=research_question,
                 query_id=workflow_id,
-                cost_budget_remaining=constraints.get('cost_budget', 1.0),
-                max_execution_time=constraints.get('time_budget', 60),
-                quality_requirement='balanced'
+                cost_budget_remaining=constraints.get("cost_budget", 1.0),
+                max_execution_time=constraints.get("time_budget", 60),
+                quality_requirement="balanced",
             )
-            
+
             # Step 1: Research planning (simplified)
             planning_task = self.build_task(
                 agent_type=AgentType.PLANNING_AGENT,
@@ -1790,76 +1787,85 @@ class MultiAgentOrchestrator:
                     "constraints": constraints,
                 },
                 dependencies=[],
-                max_retries=1
+                max_retries=1,
             )
-            
+
             # Step 2: Simplified single-step research
             research_task = self.build_task(
                 agent_type=AgentType.RESEARCH_AGENT,
-                task_type="information_gathering", 
+                task_type="information_gathering",
                 description="Gather information on the research question",
                 input_data={
                     "research_question": research_question,
-                    "methodology": methodology
+                    "methodology": methodology,
                 },
                 dependencies=[],
-                max_retries=1
+                max_retries=1,
             )
-            
+
             # Execute tasks with simplified dependency resolution
             results = {}
-            
+
             # Execute planning first
             try:
                 planning_agent = self.create_agent(AgentType.PLANNING_AGENT)
                 planning_result = await planning_agent.execute(planning_task, state)
-                results['planning'] = planning_result
+                results["planning"] = planning_result
                 logger.info("Planning task completed", success=planning_result.success)
             except Exception as e:
                 logger.error("Planning task failed", error=str(e))
-                planning_result = NodeResult(success=False, error=str(e), confidence=0.0)
-                results['planning'] = planning_result
-            
+                planning_result = NodeResult(
+                    success=False, error=str(e), confidence=0.0
+                )
+                results["planning"] = planning_result
+
             # Execute research
             try:
                 research_agent = self.create_agent(AgentType.RESEARCH_AGENT)
                 research_result = await research_agent.execute(research_task, state)
-                results['research'] = research_result
+                results["research"] = research_result
                 logger.info("Research task completed", success=research_result.success)
             except Exception as e:
                 logger.error("Research task failed", error=str(e))
-                research_result = NodeResult(success=False, error=str(e), confidence=0.0)
-                results['research'] = research_result
-            
+                research_result = NodeResult(
+                    success=False, error=str(e), confidence=0.0
+                )
+                results["research"] = research_result
+
             # Compile final results
             execution_time = time.time() - start_time
             success = any(result.success for result in results.values())
-            
+
             workflow_metadata = {
                 "workflow_id": workflow_id,
                 "total_execution_time": execution_time,
                 "agents_used": list(results.keys()),
-                "task_count": len(results)
+                "task_count": len(results),
             }
-            
+
             final_response = "Research workflow completed"
             if research_result.success and research_result.data:
                 final_response = research_result.data.get("summary", final_response)
-            
+
             return {
                 "success": success,
                 "workflow_metadata": workflow_metadata,
                 "research_results": final_response,
-                "detailed_results": {tid: res.data for tid, res in results.items() if res.success},
+                "detailed_results": {
+                    tid: res.data for tid, res in results.items() if res.success
+                },
                 "errors": [res.error for res in results.values() if not res.success],
-                "confidence_score": sum(res.confidence for res in results.values()) / len(results),
+                "confidence_score": sum(res.confidence for res in results.values())
+                / len(results),
                 "methodology_used": methodology,
-                "research_question": research_question
+                "research_question": research_question,
             }
-            
+
         except Exception as e:
             execution_time = time.time() - start_time
-            logger.error("Research workflow failed", error=str(e), workflow_id=workflow_id)
+            logger.error(
+                "Research workflow failed", error=str(e), workflow_id=workflow_id
+            )
             return {
                 "success": False,
                 "error": str(e),
@@ -1867,12 +1873,12 @@ class MultiAgentOrchestrator:
                     "workflow_id": workflow_id,
                     "total_execution_time": execution_time,
                     "agents_used": [],
-                    "task_count": 0
+                    "task_count": 0,
                 },
                 "research_results": "Research workflow encountered an error",
                 "detailed_results": {},
                 "errors": [str(e)],
                 "confidence_score": 0.0,
                 "methodology_used": methodology,
-                "research_question": research_question
+                "research_question": research_question,
             }

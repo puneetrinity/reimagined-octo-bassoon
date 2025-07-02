@@ -4,35 +4,28 @@ SearchGraph Implementation - Clean Web Search with Brave + ScrapingBee
 Handles intelligent search routing, content enhancement, and response synthesis
 """
 
-import asyncio
 import time
 from dataclasses import dataclass
-from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 import structlog
 
 from app.cache.redis_client import CacheManager
 from app.core.config import get_settings
-from app.graphs.base import (
-    BaseGraph,
-    BaseGraphNode,
-    EndNode,
-    ErrorHandlerNode,
-    GraphState,
-    GraphType,
-    NodeResult,
-    StartNode,
-)
+from app.graphs.base import (BaseGraph, BaseGraphNode, EndNode,
+                             ErrorHandlerNode, GraphState, GraphType,
+                             NodeResult, StartNode)
 from app.models.manager import ModelManager
-
 # Import standardized providers
 from app.providers.brave_search_provider import BraveSearchProvider
 from app.providers.brave_search_provider import ProviderConfig as BraveConfig
 from app.providers.brave_search_provider import SearchQuery as BraveSearchQuery
-from app.providers.brave_search_provider import SearchResult as BraveSearchResult
-from app.providers.scrapingbee_provider import ProviderConfig as ScrapingBeeConfig
-from app.providers.scrapingbee_provider import ScrapingBeeProvider, ScrapingQuery
+from app.providers.brave_search_provider import \
+    SearchResult as BraveSearchResult
+from app.providers.scrapingbee_provider import \
+    ProviderConfig as ScrapingBeeConfig
+from app.providers.scrapingbee_provider import (ScrapingBeeProvider,
+                                                ScrapingQuery)
 
 logger = structlog.get_logger(__name__)
 
@@ -246,7 +239,8 @@ class BraveSearchNode(BaseGraphNode):
 
             # Check cache first - use SHA256 to avoid hash collisions
             import hashlib
-            query_hash = hashlib.sha256(query.encode('utf-8')).hexdigest()[:16]
+
+            query_hash = hashlib.sha256(query.encode("utf-8")).hexdigest()[:16]
             cache_key = f"brave_search:{query_hash}:{max_results}"
             cached_results = await self.cache_manager.get(cache_key)
 
@@ -837,8 +831,10 @@ class SearchGraph(BaseGraph):
     def _check_routing_errors(self, state: GraphState) -> str:
         """Check routing decision and prevent infinite loops."""
         # Circuit breaker: if execution path is too long, force end
-        if hasattr(state, 'execution_path') and len(state.execution_path) > 15:
-            logger.error(f"[SearchGraph] Circuit breaker tripped: execution_path too long ({len(state.execution_path)}). Forcing end.")
+        if hasattr(state, "execution_path") and len(state.execution_path) > 15:
+            logger.error(
+                f"[SearchGraph] Circuit breaker tripped: execution_path too long ({len(state.execution_path)}). Forcing end."
+            )
             return "error"  # Will route to 'error_handler', which then routes to 'end'
         if state.errors:
             return "error"
@@ -896,9 +892,9 @@ class SearchGraph(BaseGraph):
             content_analysis = await self._content_analysis_node.execute(
                 {
                     **state,
-                    "scraped_content": scraped_content.data
-                    if scraped_content.success
-                    else {},
+                    "scraped_content": (
+                        scraped_content.data if scraped_content.success else {}
+                    ),
                     "search_results": search_results.data,
                 }
             )
@@ -906,13 +902,13 @@ class SearchGraph(BaseGraph):
             final_response = await self._response_synthesis_node.execute(
                 {
                     **state,
-                    "analysis": content_analysis.data
-                    if content_analysis.success
-                    else {},
+                    "analysis": (
+                        content_analysis.data if content_analysis.success else {}
+                    ),
                     "search_results": search_results.data,
-                    "scraped_content": scraped_content.data
-                    if scraped_content.success
-                    else {},
+                    "scraped_content": (
+                        scraped_content.data if scraped_content.success else {}
+                    ),
                 }
             )
             if final_response.success:
@@ -925,11 +921,11 @@ class SearchGraph(BaseGraph):
                             "expanded_queries", []
                         ),
                         "sources_found": len(search_results.data.get("results", [])),
-                        "content_analyzed": len(
-                            scraped_content.data.get("scraped_urls", [])
-                        )
-                        if scraped_content.success
-                        else 0,
+                        "content_analyzed": (
+                            len(scraped_content.data.get("scraped_urls", []))
+                            if scraped_content.success
+                            else 0
+                        ),
                     },
                 }
             else:
@@ -1028,9 +1024,9 @@ async def execute_search(
             "metadata": {
                 "execution_time": execution_time,
                 "total_cost": state.calculate_total_cost(),
-                "search_results_count": len(state.search_results)
-                if state.search_results
-                else 0,
+                "search_results_count": (
+                    len(state.search_results) if state.search_results else 0
+                ),
                 "quality_used": quality,
                 "budget_used": budget - state.cost_budget_remaining,
                 **state.response_metadata,

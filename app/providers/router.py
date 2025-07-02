@@ -5,9 +5,8 @@ Smart Search Router
 Intelligent search provider routing with cost optimization and fallback handling
 """
 
-import asyncio
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple
+from typing import List, Optional, Tuple
 
 import structlog
 
@@ -56,7 +55,6 @@ class BraveSearchProvider:
             logger.warning("Brave Search API key not configured")
             return []
         try:
-            import json
 
             import aiohttp
 

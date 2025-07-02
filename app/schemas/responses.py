@@ -2,8 +2,9 @@
 Real response schemas with comprehensive metadata, cost tracking, and developer hints.
 Replaces dummy responses.py
 """
+
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -14,12 +15,8 @@ class CostBreakdown(BaseModel):
     step: str = Field(..., description="Processing step name")
     service: str = Field(..., description="Service or model used")
     cost: float = Field(..., description="Cost in INR")
-    duration_ms: float | None = Field(
-        None, description="Step duration in milliseconds"
-    )
-    tokens_used: int | None = Field(
-        None, description="Tokens consumed if applicable"
-    )
+    duration_ms: float | None = Field(None, description="Step duration in milliseconds")
+    tokens_used: int | None = Field(None, description="Tokens consumed if applicable")
 
 
 class CostPrediction(BaseModel):

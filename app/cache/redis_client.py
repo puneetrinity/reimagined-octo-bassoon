@@ -20,6 +20,7 @@ logger = structlog.get_logger(__name__)
 
 class CacheKey:
     """Cache key constants and generators"""
+
     ROUTE_PREFIX = "route:"
     PATTERN_PREFIX = "pattern:"
     SHORTCUT_PREFIX = "shortcut:"
@@ -60,6 +61,7 @@ class CacheKey:
 
 class CacheStrategy:
     """Cache strategy definitions"""
+
     TTL_SHORT = 300  # 5 minutes
     TTL_MEDIUM = 1800  # 30 minutes
     TTL_LONG = 3600  # 1 hour
@@ -108,6 +110,7 @@ class CacheMetrics(BaseModel):
 
 class CacheManager:
     """Redis-based cache manager for hot layer"""
+
     def __init__(self, redis_url: str, max_connections: int = 20):
         self.redis_url = redis_url
         self.max_connections = max_connections
@@ -117,11 +120,12 @@ class CacheManager:
         self.metrics = CacheMetrics()
         self._local_cache: Dict[str, tuple[Any, datetime]] = {}
         self._local_cache_max_size = 1000
+
     async def initialize(self):
         """Initialize Redis connection with proper async handling and fallbacks."""
         try:
             import redis.asyncio as redis_async
-            
+
             # Create async Redis connection
             self.redis = redis_async.from_url(
                 self.redis_url,
@@ -130,15 +134,17 @@ class CacheManager:
                 socket_connect_timeout=10,
                 socket_timeout=10,
                 retry_on_timeout=True,
-                health_check_interval=30
+                health_check_interval=30,
             )
-            
+
             # Test connection with timeout
             await asyncio.wait_for(self.redis.ping(), timeout=10.0)
-            
-            logger.info(f"✅ Redis cache manager initialized successfully: {self.redis_url}")
+
+            logger.info(
+                f"✅ Redis cache manager initialized successfully: {self.redis_url}"
+            )
             return True
-            
+
         except asyncio.TimeoutError:
             logger.error("❌ Redis connection timed out")
             self._setup_fallback()
@@ -147,21 +153,23 @@ class CacheManager:
             logger.error(f"❌ Failed to initialize Redis: {e}")
             self._setup_fallback()
             return False
-    
+
     def _setup_fallback(self):
         """Setup local cache fallback when Redis is unavailable."""
         logger.warning("⚠️ Redis unavailable - using local cache fallback")
         self.redis = None
         self.redis_pool = None
         # Ensure local cache is ready
-        if not hasattr(self, '_local_cache'):
+        if not hasattr(self, "_local_cache"):
             self._local_cache = {}
         logger.info("📦 Local cache fallback activated")
+
     async def cleanup(self):
         if self.redis:
             await self.redis.aclose()
         if self.redis_pool:
             await self.redis_pool.disconnect()
+
     async def health_check(self) -> bool:
         try:
             if self.redis:
@@ -170,6 +178,7 @@ class CacheManager:
             return False
         except Exception:
             return False
+
     async def get(self, key: str, default: Any = None) -> Any:
         start_time = datetime.now()
         try:
@@ -195,6 +204,7 @@ class CacheManager:
             response_time = (datetime.now() - start_time).total_seconds()
             self.metrics.update_miss(response_time)
             return default
+
     async def set(self, key: str, value: Any, ttl: Optional[int] = None) -> bool:
         try:
             serialized_value = json.dumps(value)
@@ -210,13 +220,16 @@ class CacheManager:
         except Exception as e:
             logger.warning(f"Cache set error for key {key}: {e}")
             try:
-                expiry = datetime.now() + timedelta(seconds=ttl or CacheStrategy.TTL_MEDIUM)
+                expiry = datetime.now() + timedelta(
+                    seconds=ttl or CacheStrategy.TTL_MEDIUM
+                )
                 self._local_cache[key] = (value, expiry)
                 self._cleanup_local_cache()
                 return True
             except Exception as local_e:
                 logger.error(f"Local cache set error: {local_e}")
                 return False
+
     def _cleanup_local_cache(self):
         if len(self._local_cache) > self._local_cache_max_size:
             now = datetime.now()

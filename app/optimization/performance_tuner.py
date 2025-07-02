@@ -8,18 +8,15 @@ import asyncio
 import hashlib
 import json
 import time
-from collections import defaultdict, deque
-from dataclasses import asdict, dataclass
-from datetime import datetime, timedelta
+from collections import deque
+from dataclasses import dataclass
+from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
-import numpy as np
 import structlog
 
 from app.cache.redis_client import CacheManager
-from app.core.config import get_settings
-from app.models.manager import ModelManager
 
 logger = structlog.get_logger(__name__)
 

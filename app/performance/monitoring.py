@@ -9,7 +9,6 @@ import time
 from collections import defaultdict, deque
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
-from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
@@ -141,17 +140,17 @@ class PerformanceTracker:
         summary = {
             "time_period_hours": hours,
             "total_requests": total_requests,
-            "success_rate": successful_requests / total_requests
-            if total_requests > 0
-            else 0,
+            "success_rate": (
+                successful_requests / total_requests if total_requests > 0 else 0
+            ),
             "cache_hit_rate": cache_hits / total_requests if total_requests > 0 else 0,
-            "avg_cost_per_query": total_cost / total_requests
-            if total_requests > 0
-            else 0,
+            "avg_cost_per_query": (
+                total_cost / total_requests if total_requests > 0 else 0
+            ),
             "response_times": {
-                "avg": sum(response_times) / len(response_times)
-                if response_times
-                else 0,
+                "avg": (
+                    sum(response_times) / len(response_times) if response_times else 0
+                ),
                 "p50": percentile(response_times, 50),
                 "p90": percentile(response_times, 90),
                 "p95": percentile(response_times, 95),

@@ -276,7 +276,7 @@ class BaseGraph(ABC):
         self.logger.info(
             "Graph execution started",
             graph_name=self.name,
-            query_id=getattr(state, 'query_id', None),
+            query_id=getattr(state, "query_id", None),
         )
         try:
             result = await asyncio.wait_for(self.graph.ainvoke(state), timeout=60.0)
@@ -284,7 +284,7 @@ class BaseGraph(ABC):
             self.logger.info(
                 "Graph execution completed",
                 graph_name=self.name,
-                query_id=getattr(state, 'query_id', None),
+                query_id=getattr(state, "query_id", None),
                 duration=duration,
             )
             # Handle LangGraph result - it might be a different type
@@ -300,7 +300,7 @@ class BaseGraph(ABC):
             self.logger.error(
                 "Graph execution timeout",
                 graph_name=self.name,
-                query_id=getattr(state, 'query_id', None),
+                query_id=getattr(state, "query_id", None),
                 duration=duration,
             )
             state.errors.append("Graph execution timeout")
@@ -312,7 +312,7 @@ class BaseGraph(ABC):
             self.logger.error(
                 "Graph execution failed",
                 graph_name=self.name,
-                query_id=getattr(state, 'query_id', None),
+                query_id=getattr(state, "query_id", None),
                 error=str(e),
                 duration=duration,
                 exc_info=e,
