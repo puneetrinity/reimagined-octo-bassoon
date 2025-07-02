@@ -44,14 +44,29 @@ jobs:
           pip install -r requirements.txt
           pip install -r requirements-dev.txt
 
-      - name: Run linting
+      - name: Run code formatting check
+        run: |
+          black --check --diff app/
+          echo "✅ Code formatting check passed"
+
+      - name: Run import sorting check
+        run: |
+          isort --check-only --diff app/
+          echo "✅ Import sorting check passed"
+
+      - name: Run linting (ruff)
         run: |
           ruff check app/ --select E,W,F --ignore E501
-          echo "✅ Linting passed"
+          echo "✅ Ruff linting passed"
+
+      - name: Run linting (flake8) 
+        run: |
+          flake8 app/ --max-line-length=100 --ignore=E501,W503
+          echo "✅ Flake8 linting passed"
 
       - name: Run type checking
         run: |
-          mypy app/ --ignore-missing-imports --no-strict-optional
+          mypy app/ --ignore-missing-imports --no-strict-optional --allow-untyped-defs
           echo "✅ Type checking passed"
 
       - name: Run tests

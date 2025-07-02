@@ -21,6 +21,13 @@ help:
 	@echo "  make runpod       - Start RunPod deployment"
 	@echo "  make runpod-build - Build RunPod-optimized image"
 	@echo ""
+	@echo "Development Quality:"
+	@echo "  make lint         - Run code linting checks"
+	@echo "  make format       - Format code with black & isort"
+	@echo "  make typecheck    - Run mypy type checking"
+	@echo "  make pytest       - Run pytest tests"
+	@echo "  make check-all    - Run all quality checks"
+	@echo ""
 	@echo "Maintenance:"
 	@echo "  make health       - Check system health"
 	@echo "  make test         - Run API tests"
@@ -71,6 +78,34 @@ test:
 	@curl -f http://localhost:8000/health/live || echo "❌ Liveness check failed"
 	@curl -f http://localhost:8000/health/ready || echo "❌ Readiness check failed"
 	@curl -f http://localhost:8000/api/v1/models/list || echo "❌ Models API failed"
+
+# Development quality checks
+lint:
+	@echo "🔍 Running code quality checks..."
+	@cd .. && python -m black --check app/
+	@cd .. && python -m isort --check-only app/
+	@cd .. && python -m ruff check app/ --select E,W,F --ignore E501
+	@cd .. && python -m flake8 app/ --max-line-length=100 --ignore=E501,W503
+	@echo "✅ All linting checks passed"
+
+format:
+	@echo "🎨 Formatting code..."
+	@cd .. && python -m black app/
+	@cd .. && python -m isort app/
+	@echo "✅ Code formatted"
+
+typecheck:
+	@echo "🔍 Running type checking..."
+	@cd .. && python -m mypy app/ --ignore-missing-imports --no-strict-optional --allow-untyped-defs
+	@echo "✅ Type checking passed"
+
+pytest:
+	@echo "🧪 Running pytest..."
+	@cd .. && python -m pytest tests/ -v --tb=short
+	@echo "✅ Tests passed"
+
+check-all: lint typecheck pytest
+	@echo "✅ All checks passed - ready for commit!"
 
 shell:
 	@echo "💻 Accessing application shell..."
