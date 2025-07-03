@@ -23,8 +23,8 @@ def get_ollama_host() -> str:
 
     # Check if we're in RunPod environment
     if os.getenv("RUNPOD_POD_ID") or "runpod" in os.getenv("HOSTNAME", "").lower():
-        # Use external Ollama endpoint for RunPod
-        return "https://l4vja98so6wvh9-11434.proxy.runpod.net"
+        # Use localhost since Ollama runs in the same container
+        return "http://localhost:11434"
 
     # Default to localhost for local development
     return "http://localhost:11434"
