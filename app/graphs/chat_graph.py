@@ -1015,6 +1015,7 @@ class ChatGraph(BaseGraph):
         super().__init__(GraphType.CHAT, "chat_graph")
         self.model_manager = model_manager
         self.cache_manager = cache_manager
+        self.is_initialized = False
         self.execution_stats = {
             "total_executions": 0,
             "successful_executions": 0,
@@ -1023,6 +1024,7 @@ class ChatGraph(BaseGraph):
         }
         # Automatically build the graph
         self.build()
+        self.is_initialized = True
 
     def get_performance_stats(self) -> Dict[str, Any]:
         stats = self.execution_stats.copy()
@@ -1208,6 +1210,25 @@ class ChatGraph(BaseGraph):
             )
             state.errors.append(f"Graph execution failed: {str(e)}")
             return state
+
+    async def shutdown(self):
+        """Shutdown the chat graph and cleanup resources."""
+        logger.info("🔄 Shutting down ChatGraph...")
+        
+        try:
+            # Shutdown model manager if it belongs to this graph
+            if hasattr(self.model_manager, 'shutdown'):
+                await self.model_manager.shutdown()
+            
+            # Shutdown cache manager if it belongs to this graph
+            if hasattr(self.cache_manager, 'cleanup'):
+                await self.cache_manager.cleanup()
+            
+            self.is_initialized = False
+            logger.info("✅ ChatGraph shutdown completed")
+            
+        except Exception as e:
+            logger.warning(f"⚠️ ChatGraph shutdown warning: {e}")
 
 
 # Export main classes
