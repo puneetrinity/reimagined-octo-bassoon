@@ -12,10 +12,8 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from app.evaluation.adaptive_evaluator import RoutingPerformanceAnalyzer
-from app.evaluation.response_evaluator import (EvaluationDimension,
-                                               EvaluationSuite)
-from app.schemas.responses import (create_error_response,
-                                   create_success_response)
+from app.evaluation.response_evaluator import EvaluationDimension, EvaluationSuite
+from app.schemas.responses import create_error_response, create_success_response
 
 # Authentication temporarily disabled for deployment
 
@@ -27,7 +25,9 @@ class EvaluationRequest(BaseModel):
     """Request model for evaluating a response"""
 
     query: str = Field(default="test query", description="The original query")
-    response: str = Field(default="test response", description="The AI response to evaluate")
+    response: str = Field(
+        default="test response", description="The AI response to evaluate"
+    )
     context: Optional[Dict[str, Any]] = Field(None, description="Additional context")
 
 
@@ -35,7 +35,8 @@ class BatchEvaluationRequest(BaseModel):
     """Request model for batch evaluation"""
 
     interactions: List[Dict[str, Any]] = Field(
-        default=[{"query": "test", "response": "test"}], description="List of query-response interactions"
+        default=[{"query": "test", "response": "test"}],
+        description="List of query-response interactions",
     )
 
 

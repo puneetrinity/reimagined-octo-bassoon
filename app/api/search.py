@@ -10,13 +10,15 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Body, Depends, HTTPException, Request
 
 from app.api.security import get_current_user, require_permission
-from app.core.async_utils import (AsyncSafetyValidator, ensure_awaited,
-                                  safe_execute)
+from app.core.async_utils import AsyncSafetyValidator, ensure_awaited, safe_execute
 from app.core.logging import get_correlation_id, get_logger, log_performance
 from app.schemas.requests import AdvancedSearchRequest, SearchRequest
-from app.schemas.responses import (SearchData, SearchResponse,
-                                   create_error_response,
-                                   create_success_response)
+from app.schemas.responses import (
+    SearchData,
+    SearchResponse,
+    create_error_response,
+    create_success_response,
+)
 
 router = APIRouter()
 logger = get_logger("api.search")

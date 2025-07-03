@@ -577,9 +577,9 @@ async def get_cost_analysis(time_range_hours: int = 24) -> Dict:
 
             analysis["recommendations"] = recommendations
         else:
-            analysis["message"] = (
-                "Enhanced cost tracking not available, using basic estimates"
-            )
+            analysis[
+                "message"
+            ] = "Enhanced cost tracking not available, using basic estimates"
             analysis["estimated_metrics"] = {
                 "note": "Install Week 2 enhanced router for detailed cost analysis"
             }
@@ -620,7 +620,6 @@ async def get_performance_comparison() -> Dict:
             and hasattr(_adaptive_router, "current_experiment")
             and _adaptive_router.current_experiment
         ):
-
             experiment_status = (
                 _adaptive_router.current_experiment.get_experiment_status()
             )
@@ -671,9 +670,9 @@ async def get_performance_comparison() -> Dict:
             # Basic comparison using bandit stats
             bandit_stats = _adaptive_router.get_adaptive_stats()
             comparison["basic_stats"] = bandit_stats
-            comparison["message"] = (
-                "Limited comparison data available, enable A/B testing for full comparison"
-            )
+            comparison[
+                "message"
+            ] = "Limited comparison data available, enable A/B testing for full comparison"
 
         return comparison
 

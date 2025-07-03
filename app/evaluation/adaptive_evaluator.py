@@ -311,10 +311,10 @@ class EvaluationDrivenAdaptiveRouter:
         unique_arms = set(eval.routing_arm for eval in self.evaluation_history)
 
         for arm in unique_arms:
-            arms_analysis[arm] = (
-                await self.performance_analyzer.analyze_routing_arm_performance(
-                    arm, self.evaluation_history, hours
-                )
+            arms_analysis[
+                arm
+            ] = await self.performance_analyzer.analyze_routing_arm_performance(
+                arm, self.evaluation_history, hours
             )
 
         # Overall system metrics

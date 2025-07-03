@@ -9,8 +9,7 @@ from typing import Any, Dict
 import structlog
 
 from app.adaptive.bandit.thompson_sampling import create_routing_bandit
-from app.adaptive.rewards.calculator import (RewardTracker,
-                                             create_mvp_reward_calculator)
+from app.adaptive.rewards.calculator import RewardTracker, create_mvp_reward_calculator
 from app.adaptive.shadow.shadow_router import ShadowRouter
 from app.cache.redis_client import CacheManager
 from app.graphs.base import GraphState, GraphType

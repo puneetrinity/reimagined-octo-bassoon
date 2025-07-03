@@ -9,8 +9,7 @@ import time
 from dataclasses import dataclass
 from typing import Dict, List, Optional
 
-from app.core.config import (A5000_CONFIG, MODEL_MEMORY_REQUIREMENTS,
-                             PRIORITY_TIERS)
+from app.core.config import A5000_CONFIG, MODEL_MEMORY_REQUIREMENTS, PRIORITY_TIERS
 
 logger = logging.getLogger(__name__)
 

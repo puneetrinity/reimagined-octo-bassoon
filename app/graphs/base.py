@@ -18,7 +18,6 @@ from pydantic import BaseModel
 logger = structlog.get_logger(__name__)
 
 
-
 class GraphType(Enum):
     """Graph type enumeration"""
 
@@ -239,7 +238,11 @@ class BaseGraph(ABC):
                     from_node, condition_func, mapping = edge
                     self.graph.add_conditional_edges(from_node, condition_func, mapping)
             # Add START edge to first node
-            first_node = "context_manager" if "context_manager" in self.nodes else list(self.nodes.keys())[0]
+            first_node = (
+                "context_manager"
+                if "context_manager" in self.nodes
+                else list(self.nodes.keys())[0]
+            )
             self.graph.add_edge(START, first_node)
             self.graph.add_edge("end", END)
             # Compile the graph to enable execution
@@ -273,12 +276,14 @@ class BaseGraph(ABC):
             query_id=getattr(state, "query_id", None),
         )
         try:
-            self.logger.info(f"DEBUG: About to call graph.ainvoke with state: {type(state)}")
+            self.logger.info(
+                f"DEBUG: About to call graph.ainvoke with state: {type(state)}"
+            )
             self.logger.info(f"DEBUG: Graph object: {self.graph}")
-            
+
             result = await asyncio.wait_for(self.graph.ainvoke(state), timeout=60.0)
             duration = time.time() - start_time
-            
+
             self.logger.info(
                 "Graph execution completed",
                 graph_name=self.name,
@@ -287,7 +292,7 @@ class BaseGraph(ABC):
             )
             self.logger.info(f"DEBUG: Graph result type: {type(result)}")
             self.logger.info(f"DEBUG: Graph result: {result}")
-            
+
             # Handle LangGraph result - it might be a different type
             if hasattr(result, "__dict__"):
                 # Result is already a proper object, copy attributes to state

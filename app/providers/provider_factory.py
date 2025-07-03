@@ -8,8 +8,7 @@ from typing import Optional
 from app.core.config import get_settings
 from app.providers.brave_search_provider import BraveSearchProvider
 from app.providers.brave_search_provider import ProviderConfig as BraveConfig
-from app.providers.scrapingbee_provider import \
-    ProviderConfig as ScrapingBeeConfig
+from app.providers.scrapingbee_provider import ProviderConfig as ScrapingBeeConfig
 from app.providers.scrapingbee_provider import ScrapingBeeProvider
 
 logger = logging.getLogger(__name__)

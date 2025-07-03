@@ -111,7 +111,7 @@ class ModelRouter:
 
     def should_use_cache(self, query: str) -> bool:
         """Determine if query should use cache based on complexity"""
-        complexity = self.analyze_query_complexity(query)
+        self.analyze_query_complexity(query)
 
         # Don't cache time-sensitive queries
         time_sensitive = [

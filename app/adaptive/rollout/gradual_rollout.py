@@ -313,7 +313,7 @@ class GradualRolloutManager:
         if not self.is_active:
             return
 
-        config = self.stage_configs[self.current_stage]
+        self.stage_configs[self.current_stage]
 
         # Emergency rollback conditions
         emergency_conditions = []
@@ -356,7 +356,6 @@ class GradualRolloutManager:
             and response_time_ok
             and confidence_ok
         ):
-
             self._advance_to_next_stage()
         elif not (error_rate_ok and response_time_ok):
             # Performance degraded - consider rollback

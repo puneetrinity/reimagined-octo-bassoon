@@ -92,7 +92,6 @@ class ClickHouseManager:
         username: str = "default",
         password: str = "",
     ):
-
         self.host = host
         self.port = port
         self.database = database
@@ -137,7 +136,7 @@ class ClickHouseManager:
             )
 
             # Test connection
-            result = self.client.command("SELECT 1")
+            self.client.command("SELECT 1")
 
             # Create database if it doesn't exist
             await self._create_database()

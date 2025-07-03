@@ -12,8 +12,11 @@ from typing import Any, Dict, Optional, Tuple
 import structlog
 
 from app.adaptive.bandit.thompson_sampling import ThompsonSamplingBandit
-from app.adaptive.rewards.calculator import (RewardTracker, RouteMetrics,
-                                             SimpleRewardCalculator)
+from app.adaptive.rewards.calculator import (
+    RewardTracker,
+    RouteMetrics,
+    SimpleRewardCalculator,
+)
 
 logger = structlog.get_logger(__name__)
 

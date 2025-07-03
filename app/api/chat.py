@@ -10,25 +10,33 @@ import uuid
 from datetime import datetime
 from typing import Any, Dict, Optional
 
-from fastapi import (APIRouter, BackgroundTasks, Body, Depends, HTTPException,
-                     Request)
+from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 
 from app.api.security import User, check_content_policy, get_current_user
-from app.core.async_utils import (coroutine_safe, ensure_awaited,
-                                  safe_graph_execute)
+from app.core.async_utils import coroutine_safe, ensure_awaited, safe_graph_execute
 from app.core.config import get_settings
-from app.core.logging import (get_correlation_id, get_logger, log_performance,
-                              set_correlation_id)
+from app.core.logging import (
+    get_correlation_id,
+    get_logger,
+    log_performance,
+    set_correlation_id,
+)
 from app.core.model_router import ModelRouter
 from app.core.timeout_utils import adaptive_timeout, timeout_manager
 from app.graphs.base import GraphState
 from app.graphs.chat_graph import ChatGraph
 from app.models.manager import QualityLevel
 from app.schemas.requests import ChatRequest, ChatStreamRequest
-from app.schemas.responses import (ChatData, ChatResponse, ConversationContext,
-                                   CostPrediction, DeveloperHints,
-                                   ResponseMetadata, create_error_response)
+from app.schemas.responses import (
+    ChatData,
+    ChatResponse,
+    ConversationContext,
+    CostPrediction,
+    DeveloperHints,
+    ResponseMetadata,
+    create_error_response,
+)
 
 router = APIRouter()
 logger = get_logger("api.chat")
@@ -149,25 +157,37 @@ async def chat_complete(
         # Retrieve conversation history from cache first
         app_state = getattr(request.app.state, "app_state", {})
         cache_manager = app_state.get("cache_manager")
-        
+
         conversation_history = []
         if cache_manager and session_id:
             try:
                 # Try to get existing conversation history
-                cached_history = await cache_manager.get(f"conversation_history:{session_id}")
+                cached_history = await cache_manager.get(
+                    f"conversation_history:{session_id}"
+                )
                 if cached_history:
-                    conversation_history = json.loads(cached_history) if isinstance(cached_history, str) else cached_history
-                    logger.info(f"Retrieved conversation history with {len(conversation_history)} messages for session {session_id}")
+                    conversation_history = (
+                        json.loads(cached_history)
+                        if isinstance(cached_history, str)
+                        else cached_history
+                    )
+                    logger.info(
+                        f"Retrieved conversation history with {len(conversation_history)} messages for session {session_id}"
+                    )
                 else:
-                    logger.info(f"No existing conversation history found for session {session_id}")
+                    logger.info(
+                        f"No existing conversation history found for session {session_id}"
+                    )
             except Exception as e:
                 logger.warning(f"Failed to retrieve conversation history: {e}")
                 conversation_history = []
-        
+
         # Fallback to user_context if cache fails
         if not conversation_history:
-            conversation_history = chat_request.user_context.get("conversation_history", [])
-        
+            conversation_history = chat_request.user_context.get(
+                "conversation_history", []
+            )
+
         graph_state = GraphState(
             query_id=query_id,
             correlation_id=correlation_id,
@@ -418,15 +438,23 @@ async def chat_complete(
         accumulated_history = list(conversation_history) if conversation_history else []
         accumulated_history.append(conversation_entry)
         chat_data.conversation_history = accumulated_history
-        
+
         # Save updated conversation history to cache for persistence
         if cache_manager and session_id:
             try:
                 history_key = f"conversation_history:{session_id}"
                 # Keep only last 20 messages to prevent memory bloat
-                trimmed_history = accumulated_history[-20:] if len(accumulated_history) > 20 else accumulated_history
-                await cache_manager.set(history_key, json.dumps(trimmed_history), ttl=3600)  # 1 hour TTL
-                logger.info(f"Saved conversation history with {len(trimmed_history)} messages for session {session_id}")
+                trimmed_history = (
+                    accumulated_history[-20:]
+                    if len(accumulated_history) > 20
+                    else accumulated_history
+                )
+                await cache_manager.set(
+                    history_key, json.dumps(trimmed_history), ttl=3600
+                )  # 1 hour TTL
+                logger.info(
+                    f"Saved conversation history with {len(trimmed_history)} messages for session {session_id}"
+                )
             except Exception as e:
                 logger.warning(f"Failed to save conversation history to cache: {e}")
         total_cost = 0.0
@@ -566,8 +594,21 @@ async def chat_stream(
     model_manager = app_state.get("model_manager")
     cache_manager = app_state.get("cache_manager")
 
-    async def generate_safe_stream():
+    # Initialize fallback components if not found in app state
+    if model_manager is None:
+        from app.dependencies import get_model_manager
 
+        model_manager = get_model_manager()
+
+    if cache_manager is None:
+        from app.dependencies import get_cache_manager
+
+        cache_manager = get_cache_manager()
+
+    if chat_graph is None:
+        chat_graph = ChatGraph(model_manager, cache_manager)
+
+    async def generate_safe_stream():
         # Get user message first for caching and routing
         user_message = ""
         for msg in reversed(streaming_request.messages):
@@ -673,17 +714,7 @@ async def chat_stream(
                     "streaming": True,
                 },
             )
-            # Ensure we have initialized dependencies
-            if chat_graph is None:
-                if model_manager is None:
-                    from app.dependencies import get_model_manager
-
-                    model_manager = get_model_manager()
-                if cache_manager is None:
-                    from app.dependencies import get_cache_manager
-
-                    cache_manager = get_cache_manager()
-                chat_graph = ChatGraph(model_manager, cache_manager)
+            # Dependencies are already initialized above
 
             # Use simple streaming approach: execute graph then stream the response
             chat_result = await safe_graph_execute(

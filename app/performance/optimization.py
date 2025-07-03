@@ -436,8 +436,8 @@ class OptimizedSearchSystem:
         return self.stats
 
 
-class OptimizedSearchSystem:
-    """Complete optimized search system"""
+class AdvancedOptimizedSearchSystem:
+    """Complete optimized search system with advanced features"""
 
     def __init__(self, search_router, search_graph):
         self.search_router = search_router
@@ -488,9 +488,9 @@ class OptimizedSearchSystem:
                 result = await self.search_graph.execute(query, **kwargs)
 
                 # Add performance metrics to result
-                result["performance_metrics"] = (
-                    self.optimizer.get_comprehensive_metrics()
-                )
+                result[
+                    "performance_metrics"
+                ] = self.optimizer.get_comprehensive_metrics()
 
                 self.optimizer.tracker.finish_operation(
                     request_id,

@@ -276,7 +276,6 @@ class OllamaClient:
             async with self._client.stream(
                 "POST", f"{self.base_url}/api/pull", json={"name": model_name}
             ) as response:
-
                 if response.status_code != 200:
                     error_text = await response.aread()
                     raise OllamaException(
@@ -569,7 +568,6 @@ class OllamaClient:
             async with self._client.stream(
                 "POST", f"{self.base_url}/api/generate", json=request_data
             ) as response:
-
                 if response.status_code != 200:
                     error_text = await response.aread()
                     raise OllamaException(

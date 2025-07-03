@@ -252,14 +252,14 @@ class CacheManager:
             "local_cache_max_size": self._local_cache_max_size,
             "redis_connected": self.redis is not None,
             "metrics": {
-                "hits": getattr(self.metrics, 'hits', 0),
-                "misses": getattr(self.metrics, 'misses', 0),
-                "total_requests": getattr(self.metrics, 'total_requests', 0),
-                "hit_rate": getattr(self.metrics, 'hit_rate', 0.0),
-                "avg_response_time": getattr(self.metrics, 'avg_response_time', 0.0)
-            }
+                "hits": getattr(self.metrics, "hits", 0),
+                "misses": getattr(self.metrics, "misses", 0),
+                "total_requests": getattr(self.metrics, "total_requests", 0),
+                "hit_rate": getattr(self.metrics, "hit_rate", 0.0),
+                "avg_response_time": getattr(self.metrics, "avg_response_time", 0.0),
+            },
         }
-        
+
         # Add Redis-specific stats if connected
         if self.redis:
             try:
@@ -267,11 +267,13 @@ class CacheManager:
                 stats["redis_info"] = {
                     "used_memory": redis_info.get("used_memory_human", "N/A"),
                     "connected_clients": redis_info.get("connected_clients", 0),
-                    "total_commands_processed": redis_info.get("total_commands_processed", 0),
+                    "total_commands_processed": redis_info.get(
+                        "total_commands_processed", 0
+                    ),
                     "keyspace_hits": redis_info.get("keyspace_hits", 0),
-                    "keyspace_misses": redis_info.get("keyspace_misses", 0)
+                    "keyspace_misses": redis_info.get("keyspace_misses", 0),
                 }
             except Exception as e:
                 stats["redis_error"] = str(e)
-        
+
         return stats

@@ -55,7 +55,6 @@ class BraveSearchProvider:
             logger.warning("Brave Search API key not configured")
             return []
         try:
-
             import aiohttp
 
             headers = {

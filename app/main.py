@@ -17,7 +17,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api import (chat, research, search)
+from app.api import chat, research, search
 from app.api import adaptive_routes as adaptive
 from app.api import analytics_routes as analytics
 from app.api import evaluation_routes as evaluation
@@ -28,8 +28,10 @@ from app.cache.redis_client import CacheManager
 from app.core.config import get_settings
 from app.core.logging import LoggingMiddleware, get_correlation_id, get_logger
 from app.core.startup_monitor import StartupMonitor
-from app.dependencies import (set_initialized_cache_manager,
-                              set_initialized_model_manager)
+from app.dependencies import (
+    set_initialized_cache_manager,
+    set_initialized_model_manager,
+)
 from app.graphs.chat_graph import ChatGraph
 from app.graphs.search_graph import SearchGraph, execute_search
 from app.models.manager import ModelManager
@@ -96,7 +98,12 @@ async def shutdown_resources(app_state: dict):
         except Exception as e:
             logger.warning(f"⚠️ CacheManager shutdown failed: {e}")
     # Shutdown other components
-    for component_name in ["search_system", "chat_graph", "search_graph", "adaptive_router"]:
+    for component_name in [
+        "search_system",
+        "chat_graph",
+        "search_graph",
+        "adaptive_router",
+    ]:
         component = app_state.get(component_name)
         if component and hasattr(component, "shutdown"):
             try:
@@ -204,22 +211,23 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             "search_system", init_search_system
         )
         app_state["search_system"] = search_system
-        
+
         # Adaptive Router (depends on model_manager and cache_manager)
         def init_adaptive_router():
             from app.adaptive.adaptive_router import AdaptiveIntelligentRouter
+
             return AdaptiveIntelligentRouter(
                 model_manager=app_state["model_manager"],
                 cache_manager=app_state["cache_manager"],
                 enable_adaptive=True,
-                shadow_rate=0.3
+                shadow_rate=0.3,
             )
-        
+
         adaptive_router = await monitor.initialize_component(
             "adaptive_router", init_adaptive_router
         )
         app_state["adaptive_router"] = adaptive_router
-        
+
         # Add more components as your system grows
         # Generate and store startup report
         startup_report = monitor.get_startup_report()
@@ -279,7 +287,7 @@ async def app_state_middleware(request: Request, call_next):
     if hasattr(request.app, "state"):
         # Get the app_state that was set during lifespan startup
         app_state = getattr(request.app.state, "app_state", {})
-        # These are already accessible via request.app.state.app_state, 
+        # These are already accessible via request.app.state.app_state,
         # but we can also set direct references for convenience
         request.app.state.search_system = app_state.get("search_system")
         request.app.state.model_manager = app_state.get("model_manager")
@@ -964,9 +972,7 @@ if __name__ == "__main__":
     print(
         f"📍 Server will be available at http://{settings.api_host}:{settings.api_port}"
     )
-    print(
-        f"📚 API documentation at http://{settings.api_host}:{settings.api_port}/docs"
-    )
+    print(f"📚 API documentation at http://{settings.api_host}:{settings.api_port}/docs")
     print(f"🏥 Health check at http://{settings.api_host}:{settings.api_port}/health")
     print(
         f"📊 System status at http://{settings.api_host}:{settings.api_port}/system/status"
@@ -985,9 +991,7 @@ if __name__ == "__main__":
     )
 
     print(f"🔑 Brave Search: {'✅ Configured' if brave_key else '❌ Not configured'}")
-    print(
-        f"🔑 ScrapingBee: {'✅ Configured' if scrapingbee_key else '❌ Not configured'}"
-    )
+    print(f"🔑 ScrapingBee: {'✅ Configured' if scrapingbee_key else '❌ Not configured'}")
 
     if not brave_key:
         print(

@@ -373,7 +373,7 @@ class ResponseEvaluator:
             else:
                 # General completeness based on response length and structure
                 word_count = len(response.split())
-                sentence_count = len([s for s in response.split(".") if s.strip()])
+                len([s for s in response.split(".") if s.strip()])
 
                 # Score based on response substance
                 if word_count < 10:
@@ -417,7 +417,7 @@ class ResponseEvaluator:
                     clarity_from_readability = 0.5
                 else:
                     clarity_from_readability = 0.3
-            except:
+            except Exception:
                 clarity_from_readability = 0.7  # Default if calculation fails
 
             # Structure analysis

@@ -10,8 +10,14 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from app.core.logging import get_logger
-from app.graphs.base import (BaseGraph, BaseGraphNode, GraphState, GraphType,
-                             NodeResult, NodeType)
+from app.graphs.base import (
+    BaseGraph,
+    BaseGraphNode,
+    GraphState,
+    GraphType,
+    NodeResult,
+    NodeType,
+)
 from app.models.manager import ModelManager, QualityLevel, TaskType
 
 logger = get_logger("graphs.chat")
@@ -421,14 +427,14 @@ class ResponseGeneratorNode(BaseGraphNode):
         conversation_history = getattr(state, "conversation_history", [])
         if not conversation_history:
             return ""
-        
+
         context_lines = ["Previous conversation:"]
         recent_history = (
             conversation_history[-5:]  # Keep last 5 exchanges for context
             if len(conversation_history) > 5
             else conversation_history
         )
-        
+
         for entry in recent_history:
             # Handle both old format (role/content) and new format (user_message/assistant_response)
             if "user_message" in entry and "assistant_response" in entry:
@@ -441,7 +447,7 @@ class ResponseGeneratorNode(BaseGraphNode):
                     context_lines.append(f"User: {content}")
                 elif role == "assistant":
                     context_lines.append(f"Assistant: {content}")
-        
+
         context_lines.append("")  # Add blank line before current query
         return "\n".join(context_lines)
 
@@ -1223,19 +1229,19 @@ class ChatGraph(BaseGraph):
     async def shutdown(self):
         """Shutdown the chat graph and cleanup resources."""
         logger.info("🔄 Shutting down ChatGraph...")
-        
+
         try:
             # Shutdown model manager if it belongs to this graph
-            if hasattr(self.model_manager, 'shutdown'):
+            if hasattr(self.model_manager, "shutdown"):
                 await self.model_manager.shutdown()
-            
+
             # Shutdown cache manager if it belongs to this graph
-            if hasattr(self.cache_manager, 'cleanup'):
+            if hasattr(self.cache_manager, "cleanup"):
                 await self.cache_manager.cleanup()
-            
+
             self.is_initialized = False
             logger.info("✅ ChatGraph shutdown completed")
-            
+
         except Exception as e:
             logger.warning(f"⚠️ ChatGraph shutdown warning: {e}")
 

@@ -276,8 +276,7 @@ def create_routing_bandit():
         )
     else:
         # Fall back to simple implementation
-        from app.adaptive.bandit.simple_thompson import \
-            create_simple_routing_bandit
+        from app.adaptive.bandit.simple_thompson import create_simple_routing_bandit
 
         logger.warning("Using simple Thompson sampling fallback (scipy not available)")
         return create_simple_routing_bandit()

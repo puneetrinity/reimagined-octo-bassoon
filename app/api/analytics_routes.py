@@ -10,8 +10,7 @@ import structlog
 from fastapi import APIRouter, Query
 from fastapi.responses import JSONResponse
 
-from app.schemas.responses import (create_error_response,
-                                   create_success_response)
+from app.schemas.responses import create_error_response, create_success_response
 from app.storage.clickhouse_client import get_clickhouse_manager
 
 router = APIRouter(tags=["Analytics"])

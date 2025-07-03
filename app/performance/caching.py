@@ -105,7 +105,7 @@ class SmartCache:
     def clear_expired(self):
         """Clear expired entries"""
         with self._lock:
-            current_time = time.time()
+            time.time()
             expired_keys = [
                 key for key, entry in self.cache.items() if entry.is_expired()
             ]

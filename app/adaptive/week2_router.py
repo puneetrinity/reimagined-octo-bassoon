@@ -10,13 +10,17 @@ import structlog
 
 from app.adaptive.adaptive_router import AdaptiveIntelligentRouter
 from app.adaptive.rewards.enhanced_calculator import (
-    EnhancedRouteMetrics, create_week2_reward_calculator)
+    EnhancedRouteMetrics,
+    create_week2_reward_calculator,
+)
 from app.cache.redis_client import CacheManager
 from app.graphs.base import GraphState
 from app.models.manager import ModelManager
 from app.monitoring.cost_tracker import get_cost_tracker
-from app.monitoring.system_metrics import (get_cache_metrics_tracker,
-                                           get_system_metrics_collector)
+from app.monitoring.system_metrics import (
+    get_cache_metrics_tracker,
+    get_system_metrics_collector,
+)
 from app.storage.clickhouse_client import get_clickhouse_manager
 
 logger = structlog.get_logger(__name__)
@@ -605,9 +609,9 @@ class Week2AdaptiveRouter(AdaptiveIntelligentRouter):
             status["budget_status"] = self.cost_tracker.get_budget_status()
             status["cost_breakdown"] = self.cost_tracker.get_cost_breakdown(24)
         elif self.enhanced_reward_calculator:
-            status["budget_status"] = (
-                self.enhanced_reward_calculator.get_budget_status()
-            )
+            status[
+                "budget_status"
+            ] = self.enhanced_reward_calculator.get_budget_status()
 
         # Add base adaptive stats
         if self.enable_adaptive:

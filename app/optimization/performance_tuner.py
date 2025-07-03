@@ -144,7 +144,7 @@ class AdvancedCacheManager:
 
         # Cache warming and prediction
         self.warming_enabled = True
-        self.prediction_model = SimplePredictionModel()
+        self.prediction_model = None  # TODO: Implement SimplePredictionModel
 
         # Background tasks
         self._optimization_task = None

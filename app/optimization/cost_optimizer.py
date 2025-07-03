@@ -859,7 +859,6 @@ class CostOptimizer:
 
         # Calculate usage patterns
         monthly_usage = budget.used_budget
-        daily_avg = budget.used_today  # Simplified - would use historical data
 
         # Tier recommendations based on usage
         tier_limits = {

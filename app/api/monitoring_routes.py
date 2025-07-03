@@ -147,8 +147,7 @@ async def get_production_health() -> Dict:
 
         # Check system metrics
         try:
-            from app.monitoring.system_metrics import \
-                get_system_metrics_collector
+            from app.monitoring.system_metrics import get_system_metrics_collector
 
             system_collector = get_system_metrics_collector()
             system_metrics = system_collector.get_comprehensive_metrics()
@@ -268,8 +267,7 @@ async def get_dashboard_summary() -> Dict:
 
         # System metrics summary
         try:
-            from app.monitoring.system_metrics import \
-                get_system_metrics_collector
+            from app.monitoring.system_metrics import get_system_metrics_collector
 
             system_collector = get_system_metrics_collector()
             system_metrics = system_collector.get_comprehensive_metrics()

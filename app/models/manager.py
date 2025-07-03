@@ -15,8 +15,12 @@ from typing import Any, Dict, List, Optional
 from app.core.config import MODEL_ASSIGNMENTS, PRIORITY_TIERS
 from app.core.logging import get_logger
 from app.core.memory_manager import A5000MemoryManager
-from app.models.ollama_client import (ModelResult, ModelStatus, OllamaClient,
-                                      OllamaException)
+from app.models.ollama_client import (
+    ModelResult,
+    ModelStatus,
+    OllamaClient,
+    OllamaException,
+)
 
 logger = get_logger("models.manager")
 
@@ -359,7 +363,7 @@ class ModelManager:
 
         # Get task-specific model preferences
         task_name = task_type.value if hasattr(task_type, "value") else str(task_type)
-        quality_name = (
+        (
             quality_requirement.value
             if hasattr(quality_requirement, "value")
             else str(quality_requirement)

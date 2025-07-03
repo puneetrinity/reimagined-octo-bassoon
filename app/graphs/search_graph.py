@@ -12,20 +12,25 @@ import structlog
 
 from app.cache.redis_client import CacheManager
 from app.core.config import get_settings
-from app.graphs.base import (BaseGraph, BaseGraphNode, EndNode,
-                             ErrorHandlerNode, GraphState, GraphType,
-                             NodeResult, StartNode)
+from app.graphs.base import (
+    BaseGraph,
+    BaseGraphNode,
+    EndNode,
+    ErrorHandlerNode,
+    GraphState,
+    GraphType,
+    NodeResult,
+    StartNode,
+)
 from app.models.manager import ModelManager
+
 # Import standardized providers
 from app.providers.brave_search_provider import BraveSearchProvider
 from app.providers.brave_search_provider import ProviderConfig as BraveConfig
 from app.providers.brave_search_provider import SearchQuery as BraveSearchQuery
-from app.providers.brave_search_provider import \
-    SearchResult as BraveSearchResult
-from app.providers.scrapingbee_provider import \
-    ProviderConfig as ScrapingBeeConfig
-from app.providers.scrapingbee_provider import (ScrapingBeeProvider,
-                                                ScrapingQuery)
+from app.providers.brave_search_provider import SearchResult as BraveSearchResult
+from app.providers.scrapingbee_provider import ProviderConfig as ScrapingBeeConfig
+from app.providers.scrapingbee_provider import ScrapingBeeProvider, ScrapingQuery
 
 logger = structlog.get_logger(__name__)
 
@@ -870,8 +875,8 @@ class SearchGraph(BaseGraph):
         Orchestrates the complete search and analysis pipeline.
         """
         query = state.get("query", "")
-        user_context = state.get("context", {})
-        constraints = state.get("constraints", {})
+        state.get("context", {})
+        state.get("constraints", {})
         logger.info("Starting search workflow", query=query)
         try:
             # Step 1: Query Expansion for better search results
