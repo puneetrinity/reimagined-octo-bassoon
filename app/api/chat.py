@@ -146,7 +146,28 @@ async def chat_complete(
             chat_request.session_id
             or f"chat_{getattr(current_user, 'user_id', current_user.get('user_id', 'unknown'))}_{int(time.time())}"
         )
-        conversation_history = chat_request.user_context.get("conversation_history", [])
+        # Retrieve conversation history from cache first
+        app_state = getattr(request.app.state, "app_state", {})
+        cache_manager = app_state.get("cache_manager")
+        
+        conversation_history = []
+        if cache_manager and session_id:
+            try:
+                # Try to get existing conversation history
+                cached_history = await cache_manager.get(f"conversation_history:{session_id}")
+                if cached_history:
+                    conversation_history = json.loads(cached_history) if isinstance(cached_history, str) else cached_history
+                    logger.info(f"Retrieved conversation history with {len(conversation_history)} messages for session {session_id}")
+                else:
+                    logger.info(f"No existing conversation history found for session {session_id}")
+            except Exception as e:
+                logger.warning(f"Failed to retrieve conversation history: {e}")
+                conversation_history = []
+        
+        # Fallback to user_context if cache fails
+        if not conversation_history:
+            conversation_history = chat_request.user_context.get("conversation_history", [])
+        
         graph_state = GraphState(
             query_id=query_id,
             correlation_id=correlation_id,
@@ -397,7 +418,17 @@ async def chat_complete(
         accumulated_history = list(conversation_history) if conversation_history else []
         accumulated_history.append(conversation_entry)
         chat_data.conversation_history = accumulated_history
-        # Optionally, also update the cache here if needed
+        
+        # Save updated conversation history to cache for persistence
+        if cache_manager and session_id:
+            try:
+                history_key = f"conversation_history:{session_id}"
+                # Keep only last 20 messages to prevent memory bloat
+                trimmed_history = accumulated_history[-20:] if len(accumulated_history) > 20 else accumulated_history
+                await cache_manager.set(history_key, json.dumps(trimmed_history), ttl=3600)  # 1 hour TTL
+                logger.info(f"Saved conversation history with {len(trimmed_history)} messages for session {session_id}")
+            except Exception as e:
+                logger.warning(f"Failed to save conversation history to cache: {e}")
         total_cost = 0.0
         try:
             if hasattr(chat_result, "calculate_total_cost"):

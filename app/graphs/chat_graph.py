@@ -421,19 +421,28 @@ class ResponseGeneratorNode(BaseGraphNode):
         conversation_history = getattr(state, "conversation_history", [])
         if not conversation_history:
             return ""
+        
         context_lines = ["Previous conversation:"]
         recent_history = (
-            conversation_history[-10:]
-            if len(conversation_history) > 10
+            conversation_history[-5:]  # Keep last 5 exchanges for context
+            if len(conversation_history) > 5
             else conversation_history
         )
+        
         for entry in recent_history:
-            role = entry.get("role", "unknown")
-            content = entry.get("content", "")
-            if role == "user":
-                context_lines.append(f"User: {content}")
-            elif role == "assistant":
-                context_lines.append(f"Assistant: {content}")
+            # Handle both old format (role/content) and new format (user_message/assistant_response)
+            if "user_message" in entry and "assistant_response" in entry:
+                context_lines.append(f"User: {entry['user_message']}")
+                context_lines.append(f"Assistant: {entry['assistant_response']}")
+            elif "role" in entry and "content" in entry:
+                role = entry.get("role", "unknown")
+                content = entry.get("content", "")
+                if role == "user":
+                    context_lines.append(f"User: {content}")
+                elif role == "assistant":
+                    context_lines.append(f"Assistant: {content}")
+        
+        context_lines.append("")  # Add blank line before current query
         return "\n".join(context_lines)
 
     def _build_query_section(self, query: str, intent: str, complexity: float) -> str:
