@@ -701,8 +701,8 @@ def check_content_policy(text: str) -> Dict[str, Any]:
     """Basic content policy checking."""
     issues = []
 
-    # Check for excessive repetition (spam)
-    if len(set(text.lower())) < max(3, len(text) // 20):
+    # Check for excessive repetition (spam) - but only for longer messages
+    if len(text) > 10 and len(set(text.lower())) < max(3, len(text) // 20):
         issues.append("excessive_repetition")
 
     # Check for extremely long messages
