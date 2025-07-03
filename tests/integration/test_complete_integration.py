@@ -133,12 +133,12 @@ async def integration_client():
     """Create test client with real services running in Docker environment."""
     from httpx import ASGITransport, AsyncClient
 
-    # Use the actual running app with real services
-    # The app should already be initialized with proper service connections
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as client:
-        yield client
+    # Use the actual running app with proper lifespan management
+    async with LifespanManager(app):
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            yield client
 
 
 class TestChatAPIIntegration:
@@ -341,7 +341,7 @@ class TestChatAPIIntegration:
         response = await integration_client.post(
             "/api/v1/chat/complete",
             json={"message": "Test with auth", "context": {}, "constraints": {}},
-            headers={"Authorization": "Bearer dev-user-token"},
+            headers={"Authorization": "Bearer test"},
         )
         assert response.status_code in (200, 422)
 

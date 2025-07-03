@@ -611,10 +611,12 @@ class ResponseGeneratorNode(BaseGraphNode):
                 logger.warning(
                     f"[ResponseGeneratorNode] Ollama unhealthy, falling back to safe response | correlation_id={correlation_id}"
                 )
-                fallback_response = (
-                    "I'm having trouble generating a response right now."
+                fallback_response = create_structured_fallback_response(
+                    "Health check failed - Ollama service unavailable",
+                    correlation_id=correlation_id
                 )
-                state.final_response = fallback_response
+                state.final_response = fallback_response["response"]
+                state.metadata = fallback_response["metadata"]
                 logger.debug(
                     f"[ResponseGeneratorNode] FAILURE PATH: state.final_response = '{state.final_response}'"
                 )
@@ -734,10 +736,12 @@ class ResponseGeneratorNode(BaseGraphNode):
                         model_used=model_name,
                     )
                 else:
-                    fallback_response = (
-                        "I'm having trouble generating a response right now."
+                    fallback_response = create_structured_fallback_response(
+                        "Model generation failed - please try again",
+                        correlation_id=correlation_id
                     )
-                    state.final_response = fallback_response
+                    state.final_response = fallback_response["response"]
+                    state.metadata = fallback_response["metadata"]
                     logger.debug(
                         f"[ResponseGeneratorNode] FAILURE PATH: state.final_response = '{state.final_response}'"
                     )
@@ -1041,6 +1045,13 @@ class ChatGraph(BaseGraph):
         self.build()
         self.is_initialized = True
 
+    async def initialize(self):
+        """Initialize the chat graph (already done in constructor)"""
+        if not self.is_initialized:
+            self.build()
+            self.is_initialized = True
+        logger.info("ChatGraph initialized", node_count=len(self.nodes))
+
     def get_performance_stats(self) -> Dict[str, Any]:
         stats = self.execution_stats.copy()
         total_exec = stats["total_executions"]
@@ -1246,11 +1257,54 @@ class ChatGraph(BaseGraph):
             logger.warning(f"⚠️ ChatGraph shutdown warning: {e}")
 
 
+def create_structured_fallback_response(error_message: str, correlation_id: str = None) -> dict:
+    """Create a structured fallback response with proper metadata."""
+    from datetime import datetime
+    
+    return {
+        "response": "I'm experiencing technical difficulties. Please try again in a moment.",
+        "metadata": {
+            "error_type": "fallback_response",
+            "error_message": error_message,
+            "correlation_id": correlation_id or "unknown",
+            "timestamp": datetime.utcnow().isoformat(),
+            "confidence": 0.0,
+            "model_used": "fallback",
+            "execution_time": 0.0,
+            "cost": 0.0
+        }
+    }
+
+
+async def create_chat_graph(model_manager: ModelManager, cache_manager=None) -> ChatGraph:
+    """
+    Factory function to create and initialize a ChatGraph instance.
+    
+    Args:
+        model_manager: The ModelManager instance for LLM operations
+        cache_manager: Optional cache manager for caching responses
+        
+    Returns:
+        Initialized ChatGraph instance
+    """
+    logger.info("Creating ChatGraph instance")
+    
+    # Create the graph instance
+    chat_graph = ChatGraph(model_manager, cache_manager)
+    
+    logger.info("ChatGraph created successfully", 
+                graph_type=chat_graph.graph_type.value,
+                node_count=len(chat_graph.nodes))
+    
+    return chat_graph
+
+
 # Export main classes
 __all__ = [
     "ChatGraph",
+    "create_chat_graph",  # Add the factory function to exports
     "ContextManagerNode",
-    "IntentClassifierNode",
+    "IntentClassifierNode", 
     "ResponseGeneratorNode",
     "CacheUpdateNode",
     "ConversationContext",

@@ -778,6 +778,13 @@ class SearchGraph(BaseGraph):
         self.cache_manager = cache_manager
         self._node_instances = {}
 
+    async def initialize(self):
+        """Initialize the search graph"""
+        # Build the graph if not already done
+        if not hasattr(self, 'nodes') or not self.nodes:
+            self.build()
+        logger.info("SearchGraph initialized", node_count=len(self.nodes))
+
     def define_nodes(self) -> Dict[str, BaseGraphNode]:
         """Define search graph nodes"""
         if not self._node_instances:
@@ -1042,3 +1049,40 @@ async def execute_search(
     finally:
         # Cleanup resources
         await search_graph.cleanup()
+
+
+async def create_search_graph(model_manager: ModelManager, cache_manager: CacheManager) -> SearchGraph:
+    """
+    Factory function to create and initialize a SearchGraph instance.
+    
+    Args:
+        model_manager: The ModelManager instance for LLM operations
+        cache_manager: Cache manager for caching search results and responses
+        
+    Returns:
+        Initialized SearchGraph instance
+    """
+    logger.info("Creating SearchGraph instance")
+    
+    # Create the graph instance
+    search_graph = SearchGraph(model_manager, cache_manager)
+    
+    # Build the graph (this is already done in the constructor via parent class)
+    logger.info("SearchGraph created successfully", 
+                graph_type=search_graph.graph_type.value,
+                node_count=len(search_graph.nodes))
+    
+    return search_graph
+
+
+# Export main classes
+__all__ = [
+    "SearchGraph",
+    "create_search_graph",
+    "SmartSearchRouterNode",
+    "BraveSearchNode", 
+    "ContentEnhancementNode",
+    "ResponseSynthesisNode",
+    "DirectResponseNode",
+    "EnhancedSearchResult",
+]

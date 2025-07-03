@@ -72,6 +72,11 @@ class ChatRequest(BaseModel):
     force_local_only: Optional[bool] = Field(
         False, description="Force local models only"
     )
+    
+    # Optional constraints object for backward compatibility
+    constraints: Optional[Constraints] = Field(
+        None, description="Request constraints (alternative to top-level fields)"
+    )
     # Response preferences
     response_style: Optional[str] = Field(
         "balanced", description="Response style: concise, balanced, detailed"
