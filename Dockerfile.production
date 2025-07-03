@@ -51,14 +51,18 @@ RUN python3 -m pip install --upgrade pip setuptools wheel
 # Install Ollama
 RUN curl -fsSL https://ollama.ai/install.sh | sh
 
+# Create application user for security
+RUN groupadd -r appuser && useradd -r -g appuser appuser
+
 # Copy and install Python dependencies
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Create necessary directories first
-RUN mkdir -p /app/logs /app/data /app/models /root/.ollama/models /var/log/supervisor /var/run /etc/supervisor/conf.d && \
-    chmod 755 /app/logs /app/data /app/models /root/.ollama && \
-    chmod 755 /root/.ollama/models /var/log/supervisor /var/run /etc/supervisor /etc/supervisor/conf.d
+RUN mkdir -p /app/logs /app/data /app/models /home/appuser/.ollama/models /var/log/supervisor /var/run /etc/supervisor/conf.d && \
+    chmod 755 /app/logs /app/data /app/models /home/appuser/.ollama && \
+    chmod 755 /home/appuser/.ollama/models /var/log/supervisor /var/run /etc/supervisor /etc/supervisor/conf.d && \
+    chown -R appuser:appuser /app /home/appuser/.ollama
 
 # Copy application code to /app
 COPY app ./app
@@ -164,6 +168,10 @@ EXPOSE 8000 11434 6379
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD curl -f http://localhost:8000/health/live || exit 1
 
+# Create a flexible entrypoint that allows both supervised mode and shell access
+COPY docker/flexible-entrypoint.sh /app/flexible-entrypoint.sh
+RUN chmod +x /app/flexible-entrypoint.sh
+
 # Start services
-ENTRYPOINT ["/app/start-app.sh"]
-CMD ["/app/scripts/supervisord-wrapper.sh", "-c", "/etc/supervisor/supervisord.conf", "-n"]
+ENTRYPOINT ["/app/flexible-entrypoint.sh"]
+CMD ["supervised"]

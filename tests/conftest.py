@@ -16,12 +16,30 @@ from fastapi.testclient import TestClient
 from httpx import ASGITransport, AsyncClient
 
 from app.api import security
+from app.api.chat import set_dependencies
 from app.graphs.base import GraphState
 from app.main import app
 from app.models.ollama_client import OllamaClient
 from app.models.manager import ModelManager
 
 load_dotenv()
+
+# Async task cleanup fixture
+@pytest_asyncio.fixture(autouse=True)
+async def cleanup_background_tasks():
+    """Automatically cleanup background tasks after each test to prevent task pollution."""
+    yield
+    # Cancel all pending tasks except the current one
+    current_task = asyncio.current_task()
+    tasks = [t for t in asyncio.all_tasks() if not t.done() and t != current_task]
+    
+    if tasks:
+        print(f"⚠️ Cleaning up {len(tasks)} pending tasks after test")
+        for task in tasks:
+            task.cancel()
+        
+        # Wait for tasks to be cancelled
+        await asyncio.gather(*tasks, return_exceptions=True)
 
 # Pre-test Ollama model availability check
 
@@ -91,9 +109,12 @@ async def mock_model_manager():
         async def generate(self, model_name, prompt, **kwargs):
             from app.models.manager import ModelResult
 
+            # Return a longer response to pass length validation tests
+            test_response = "This is a comprehensive mock response from the AI model that provides detailed information and analysis. The response contains multiple sentences to ensure it meets minimum length requirements for testing. This mock response simulates realistic AI-generated content that would be returned by the actual model during normal operation."
+
             return ModelResult(
                 success=True,
-                text="Mock response from model",
+                text=test_response,
                 cost=0.001,
                 execution_time=0.5,
                 model_used=model_name,
@@ -181,6 +202,15 @@ async def integration_client(mock_model_manager, mock_cache_manager):
     """Create test client with mocked dependencies and proper cleanup."""
     set_dependencies(mock_model_manager, mock_cache_manager)
     app_instance = app
+    
+    # Ensure app state is properly set with mocked components
+    app_instance.state.app_state = {
+        'model_manager': mock_model_manager,
+        'cache_manager': mock_cache_manager,
+        'startup_time': 1234567890,  # Fixed timestamp for tests
+        'health_status': 'healthy'
+    }
+    
     timeout = 3.0  # Reduced from 5.0
     try:
         async with LifespanManager(
