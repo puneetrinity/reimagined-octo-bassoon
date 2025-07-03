@@ -49,6 +49,15 @@ ENV/
 env.bak/
 venv.bak/
 
+# Test environments and temporary files
+test_env/
+test_*.py
+*_test.py
+verify_*.py
+
+# Temporary development files
+docker-compose.testing.yml
+
 # IDE
 .vscode/
 .idea/
