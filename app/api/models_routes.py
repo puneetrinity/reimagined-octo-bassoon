@@ -74,9 +74,12 @@ async def remove_model(model_name: str):
     """Remove a model"""
 
     try:
-        async with httpx.AsyncClient() as client:
-            response = await client.delete(
-                "http://localhost:11434/api/delete", json={"name": model_name}
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            # Ollama delete endpoint expects a POST request, not DELETE
+            response = await client.post(
+                "http://localhost:11434/api/delete", 
+                json={"name": model_name},
+                timeout=60.0
             )
 
             if response.status_code == 200:

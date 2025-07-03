@@ -26,8 +26,8 @@ logger = structlog.get_logger(__name__)
 class EvaluationRequest(BaseModel):
     """Request model for evaluating a response"""
 
-    query: str = Field(..., description="The original query")
-    response: str = Field(..., description="The AI response to evaluate")
+    query: str = Field(default="test query", description="The original query")
+    response: str = Field(default="test response", description="The AI response to evaluate")
     context: Optional[Dict[str, Any]] = Field(None, description="Additional context")
 
 
@@ -35,18 +35,18 @@ class BatchEvaluationRequest(BaseModel):
     """Request model for batch evaluation"""
 
     interactions: List[Dict[str, Any]] = Field(
-        ..., description="List of query-response interactions"
+        default=[{"query": "test", "response": "test"}], description="List of query-response interactions"
     )
 
 
 class RoutingEvaluationRequest(BaseModel):
     """Request model for evaluating routing decisions"""
 
-    routing_arm: str = Field(..., description="The routing arm used")
-    query: str = Field(..., description="The original query")
-    response: str = Field(..., description="The AI response")
-    response_time: float = Field(..., description="Response time in seconds")
-    cost_usd: float = Field(..., description="Cost in USD")
+    routing_arm: str = Field(default="test_arm", description="The routing arm used")
+    query: str = Field(default="test query", description="The original query")
+    response: str = Field(default="test response", description="The AI response")
+    response_time: float = Field(default=1.0, description="Response time in seconds")
+    cost_usd: float = Field(default=0.01, description="Cost in USD")
 
 
 # Global evaluation suite

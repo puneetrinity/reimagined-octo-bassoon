@@ -68,7 +68,7 @@ class AdaptiveIntelligentRouter:
         # Initialize graphs for shadow testing
         self.graphs = {
             GraphType.CHAT: ChatGraph(model_manager),
-            GraphType.SEARCH: SearchGraph(model_manager),
+            GraphType.SEARCH: SearchGraph(model_manager, cache_manager),
         }
 
         logger.info(

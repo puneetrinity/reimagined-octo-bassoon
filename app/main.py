@@ -96,7 +96,7 @@ async def shutdown_resources(app_state: dict):
         except Exception as e:
             logger.warning(f"⚠️ CacheManager shutdown failed: {e}")
     # Shutdown other components
-    for component_name in ["search_system", "chat_graph", "search_graph"]:
+    for component_name in ["search_system", "chat_graph", "search_graph", "adaptive_router"]:
         component = app_state.get(component_name)
         if component and hasattr(component, "shutdown"):
             try:
@@ -204,6 +204,22 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             "search_system", init_search_system
         )
         app_state["search_system"] = search_system
+        
+        # Adaptive Router (depends on model_manager and cache_manager)
+        def init_adaptive_router():
+            from app.adaptive.adaptive_router import AdaptiveIntelligentRouter
+            return AdaptiveIntelligentRouter(
+                model_manager=app_state["model_manager"],
+                cache_manager=app_state["cache_manager"],
+                enable_adaptive=True,
+                shadow_rate=0.3
+            )
+        
+        adaptive_router = await monitor.initialize_component(
+            "adaptive_router", init_adaptive_router
+        )
+        app_state["adaptive_router"] = adaptive_router
+        
         # Add more components as your system grows
         # Generate and store startup report
         startup_report = monitor.get_startup_report()
