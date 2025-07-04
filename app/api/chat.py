@@ -27,6 +27,9 @@ from app.core.timeout_utils import adaptive_timeout, timeout_manager
 from app.graphs.base import GraphState
 from app.graphs.chat_graph import ChatGraph
 from app.models.manager import QualityLevel
+# Add optimization modules
+from app.optimization.intelligent_streaming import IntelligentStreamingOptimizer
+from app.optimization.enhanced_cache import EnhancedCacheManager
 from app.schemas.requests import ChatRequest, ChatStreamRequest
 from app.schemas.responses import (
     ChatData,
@@ -45,6 +48,10 @@ settings = get_settings()
 
 # Note: Components are accessed from app.state.app_state, not global variables
 model_router = ModelRouter()  # Initialize model router
+
+# Initialize optimization modules
+streaming_optimizer = IntelligentStreamingOptimizer()
+cache_manager = EnhancedCacheManager()
 
 # CORRECTED REQUEST MODELS WITH PROPER WRAPPERS
 
@@ -243,13 +250,13 @@ async def chat_complete(
         )
         # Retrieve conversation history from cache first
         app_state = getattr(request.app.state, "app_state", {})
-        cache_manager = app_state.get("cache_manager")
+        cache_manager_app = app_state.get("cache_manager")
 
         conversation_history = []
-        if cache_manager and session_id:
+        if cache_manager_app and session_id:
             try:
-                # Try to get existing conversation history
-                cached_history = await cache_manager.get(
+                # Try to get existing conversation history with enhanced cache manager
+                cached_history = await cache_manager.get_from_l1_or_l2(
                     f"conversation_history:{session_id}"
                 )
                 if cached_history:
@@ -691,7 +698,7 @@ async def chat_stream(
     app_state = getattr(req.app.state, "app_state", {})
     chat_graph = app_state.get("chat_graph")
     model_manager = app_state.get("model_manager")
-    cache_manager = app_state.get("cache_manager")
+    cache_manager_app = app_state.get("cache_manager")
 
     # Initialize fallback components if not found in app state
     if model_manager is None:
@@ -699,13 +706,16 @@ async def chat_stream(
 
         model_manager = get_model_manager()
 
-    if cache_manager is None:
+    if cache_manager_app is None:
         from app.dependencies import get_cache_manager
 
-        cache_manager = get_cache_manager()
+        cache_manager_app = get_cache_manager()
+
+    # Use enhanced cache manager for better performance
+    cache_manager = cache_manager
 
     if chat_graph is None:
-        chat_graph = ChatGraph(model_manager, cache_manager)
+        chat_graph = ChatGraph(model_manager, cache_manager_app)
 
     async def generate_safe_stream():
         # Get user message first for caching and routing
@@ -815,7 +825,7 @@ async def chat_stream(
             )
             # Dependencies are already initialized above
 
-            # Use simple streaming approach: execute graph then stream the response
+            # Use intelligent streaming approach: execute graph then stream optimally
             chat_result = await safe_graph_execute(
                 chat_graph, graph_state, timeout=30.0
             )
@@ -829,6 +839,15 @@ async def chat_stream(
                 response_text = chat_result.final_response
                 model_used = "phi3:mini"  # Default model
 
+                # Get routing confidence and arm performance for intelligent streaming
+                routing_confidence = getattr(chat_result, 'routing_confidence', 0.7)
+                arm_performance = getattr(chat_result, 'arm_performance', 0.8)
+                
+                # Use intelligent streaming optimizer
+                streaming_config = streaming_optimizer.get_streaming_config(
+                    routing_confidence, arm_performance
+                )
+                
                 # Cache the response for future use with intelligent TTL
                 if should_cache and cache_manager:
                     cache_key = (
@@ -845,15 +864,12 @@ async def chat_stream(
                     except Exception as e:
                         logger.warning(f"Failed to cache response: {e}")
 
-                # Optimized streaming: word-based chunks for better readability
-                words = response_text.split()
-                chunk_size = max(
-                    8, len(words) // 25
-                )  # Optimal chunk size for readability
-
-                for i in range(0, len(words), chunk_size):
-                    chunk_words = words[i : i + chunk_size]
-                    chunk = " ".join(chunk_words)
+                # Use intelligent streaming: adaptive chunk size and delay
+                chunks = streaming_optimizer.create_adaptive_chunks(
+                    response_text, streaming_config
+                )
+                
+                for i, chunk in enumerate(chunks):
                     stream_chunk = {
                         "id": f"chatcmpl-{query_id}",
                         "object": "chat.completion.chunk",
@@ -869,13 +885,11 @@ async def chat_stream(
                     }
                     yield f"data: {json.dumps(stream_chunk)}\n\n"
 
-                    # Variable delays for better UX
-                    if i == 0:
-                        await asyncio.sleep(0.05)  # Quick first chunk
-                    elif i < chunk_size * 3:
-                        await asyncio.sleep(0.08)  # Faster initial chunks
-                    else:
-                        await asyncio.sleep(0.12)  # Normal delay
+                    # Use intelligent delay based on performance
+                    delay = streaming_optimizer.get_adaptive_delay(
+                        i, len(chunks), streaming_config
+                    )
+                    await asyncio.sleep(delay)
 
                 # Send final chunk
                 final_chunk = {
