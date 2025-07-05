@@ -213,15 +213,17 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         app_state["search_system"] = search_system
 
         # Adaptive Router (depends on model_manager and cache_manager)
-        def init_adaptive_router():
+        async def init_adaptive_router():
             from app.adaptive.adaptive_router import AdaptiveIntelligentRouter
 
-            return AdaptiveIntelligentRouter(
+            router = AdaptiveIntelligentRouter(
                 model_manager=app_state["model_manager"],
                 cache_manager=app_state["cache_manager"],
                 enable_adaptive=True,
                 shadow_rate=0.3,
             )
+            await router.initialize()
+            return router
 
         adaptive_router = await monitor.initialize_component(
             "adaptive_router", init_adaptive_router

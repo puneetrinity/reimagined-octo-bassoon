@@ -256,9 +256,16 @@ async def chat_complete(
         if cache_manager_app and session_id:
             try:
                 # Try to get existing conversation history with enhanced cache manager
-                cached_history = await cache_manager.get_from_l1_or_l2(
-                    f"conversation_history:{session_id}"
-                )
+                # Use the appropriate cache manager (app or global enhanced)
+                if hasattr(cache_manager, 'get_from_l1_or_l2'):
+                    cached_history = await cache_manager.get_from_l1_or_l2(
+                        f"conversation_history:{session_id}"
+                    )
+                else:
+                    # Fallback to basic get method
+                    cached_history = await cache_manager.get(
+                        f"conversation_history:{session_id}"
+                    )
                 if cached_history:
                     conversation_history = (
                         json.loads(cached_history)
@@ -688,7 +695,7 @@ async def chat_stream(
     *,
     req: Request,
     streaming_request: ChatStreamRequest,
-    current_user: User = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user),
 ):
     correlation_id = str(uuid.uuid4())
     set_correlation_id(correlation_id)
@@ -712,7 +719,10 @@ async def chat_stream(
         cache_manager_app = get_cache_manager()
 
     # Use enhanced cache manager for better performance
-    cache_manager = cache_manager
+    if cache_manager_app:
+        cache_manager = cache_manager_app
+    else:
+        cache_manager = cache_manager  # Fallback to global enhanced cache manager
 
     if chat_graph is None:
         chat_graph = ChatGraph(model_manager, cache_manager_app)
