@@ -332,8 +332,8 @@ async def test_graph_statistics():
         state = GraphState(original_query=query, session_id="stats_test")
         try:
             await chat_graph.execute(state)
-        except:
-            pass  # Continue even if individual queries fail
+        except Exception as e:
+            pass  # Continue even if individual queries fail  # Error: str(e)
 
     # Get graph statistics
     graph_stats = chat_graph.get_performance_stats()

@@ -824,7 +824,7 @@ if __name__ == "__main__":
     # Wait if requested (useful for startup)
     if args.wait > 0:
         print(f"⏳ Waiting {args.wait} seconds before starting...")
-        time.sleep(args.wait)
+        await asyncio.sleep(args.wait)
 
     if args.smoke:
         # Quick smoke test
