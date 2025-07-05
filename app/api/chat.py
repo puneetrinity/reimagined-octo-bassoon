@@ -28,7 +28,7 @@ from app.graphs.base import GraphState
 from app.graphs.chat_graph import ChatGraph
 from app.models.manager import QualityLevel
 # Add optimization modules
-from app.optimization.intelligent_streaming import IntelligentStreamingOptimizer
+from app.optimization.intelligent_streaming import IntelligentResponseStreamer
 from app.optimization.enhanced_cache import EnhancedCacheManager
 from app.schemas.requests import ChatRequest, ChatStreamRequest
 from app.schemas.responses import (
@@ -50,7 +50,7 @@ settings = get_settings()
 model_router = ModelRouter()  # Initialize model router
 
 # Initialize optimization modules
-streaming_optimizer = IntelligentStreamingOptimizer()
+streaming_optimizer = IntelligentResponseStreamer()
 cache_manager = EnhancedCacheManager()
 
 # CORRECTED REQUEST MODELS WITH PROPER WRAPPERS

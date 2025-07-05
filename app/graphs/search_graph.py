@@ -618,7 +618,7 @@ Response:"""
             "premium": "llama2:13b",
             "high": "mistral:7b",
             "balanced": "llama2:7b",
-            "minimal": "phi:mini",
+            "minimal": "phi3:mini",
         }
         return model_mapping.get(quality, "llama2:7b")
 
@@ -723,7 +723,7 @@ Since this doesn't require web search, give a conversational and informative res
 Response:"""
 
             model_result = await self.model_manager.generate(
-                model_name="phi:mini",  # Fast model for direct responses
+                model_name="phi3:mini",  # Fast model for direct responses
                 prompt=response_prompt,
                 max_tokens=300,
                 temperature=0.6,
@@ -745,7 +745,7 @@ Response:"""
                 confidence=confidence,
                 data={"response": response, "type": "model_generated"},
                 cost=cost,
-                model_used="phi:mini" if model_result.success else None,
+                model_used="phi3:mini" if model_result.success else None,
             )
 
         except Exception as e:
@@ -805,29 +805,29 @@ class SearchGraph(BaseGraph):
         return [
             # Start with routing decision
             ("start", "smart_router"),
-            # Search path
-            ("smart_router", "brave_search"),
-            ("brave_search", "content_enhancement"),
-            ("content_enhancement", "response_synthesis"),
-            ("response_synthesis", "end"),
-            # Direct response path
-            ("smart_router", "direct_response"),
-            ("direct_response", "end"),
-            # Error handling
+            # Conditional routing from smart_router
             (
                 "smart_router",
                 self._check_routing_errors,
                 {
-                    "error": "error_handler",
                     "search": "brave_search",
                     "direct": "direct_response",
+                    "error": "error_handler",
                 },
             ),
+            # Search path
+            ("brave_search", "content_enhancement"),
+            ("content_enhancement", "response_synthesis"),
+            ("response_synthesis", "end"),
+            # Direct response path
+            ("direct_response", "end"),
+            # Search results conditional routing
             (
                 "brave_search",
                 self._check_search_results,
                 {"no_results": "direct_response", "has_results": "content_enhancement"},
             ),
+            # Content enhancement conditional routing
             (
                 "content_enhancement",
                 self._check_enhancement_results,
@@ -836,8 +836,8 @@ class SearchGraph(BaseGraph):
                     "error": "response_synthesis",  # Continue even if enhancement fails
                 },
             ),
+            # Error handling
             ("error_handler", "end"),
-            # If more terminal nodes are added in the future, ensure they also route to 'end'
         ]
 
     def _check_routing_errors(self, state: GraphState) -> str:
@@ -1014,6 +1014,9 @@ async def execute_search(
 
     # Create and execute search graph
     search_graph = SearchGraph(model_manager, cache_manager)
+    
+    # Build the graph
+    search_graph.build()
 
     try:
         # Create initial state
@@ -1022,11 +1025,12 @@ async def execute_search(
             cost_budget_remaining=budget,
             quality_requirement=quality,
             max_execution_time=30.0,
+            max_results=max_results,  # Add max_results to state
         )
 
         # Execute graph
         start_time = time.time()
-        result = await search_graph.execute(state, max_results=max_results)
+        result = await search_graph.execute(state)  # Remove max_results keyword argument
         execution_time = time.time() - start_time
 
         return {
@@ -1043,7 +1047,7 @@ async def execute_search(
                 "budget_used": budget - state.cost_budget_remaining,
                 **state.response_metadata,
             },
-            "success": result.success if result else False,
+            "success": len(state.errors) == 0,  # Success if no errors
         }
 
     finally:

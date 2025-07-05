@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Any, AsyncGenerator, Dict
 
 import uvicorn
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, Request, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
@@ -227,6 +227,39 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             "adaptive_router", init_adaptive_router
         )
         app_state["adaptive_router"] = adaptive_router
+
+        # Initialize API key status for provider health checks
+        def init_api_key_status():
+            """Check for API keys and set their status in app_state."""
+            api_key_status = {}
+            
+            # Check Brave Search API key
+            brave_key = os.getenv("BRAVE_API_KEY")
+            if brave_key and brave_key.strip():
+                api_key_status["brave_search"] = True
+                logger.info("✅ Brave Search API key configured")
+            else:
+                api_key_status["brave_search"] = False
+                logger.info("⚠️ Brave Search API key not configured")
+            
+            # Check ScrapingBee API key
+            scrapingbee_key = os.getenv("SCRAPINGBEE_API_KEY")
+            if scrapingbee_key and scrapingbee_key.strip():
+                api_key_status["scrapingbee"] = True
+                logger.info("✅ ScrapingBee API key configured")
+            else:
+                api_key_status["scrapingbee"] = False
+                logger.info("⚠️ ScrapingBee API key not configured")
+            
+            return api_key_status
+
+        api_key_status = await monitor.initialize_component(
+            "api_key_status", init_api_key_status
+        )
+        app_state["api_key_status"] = api_key_status
+
+        # Add startup time for uptime calculation
+        app_state["startup_time"] = time.time()
 
         # Add more components as your system grows
         # Generate and store startup report
@@ -1095,3 +1128,78 @@ Environment Variables Required:
 - REDIS_URL=redis://localhost:6379
 - OLLAMA_HOST=http://localhost:11434
 """
+
+# Adaptive Performance Monitoring Middleware
+@app.middleware("http")
+async def adaptive_performance_middleware(request: Request, call_next):
+    """Enhanced monitoring specifically for adaptive routing performance"""
+    start_time = time.time()
+    
+    # Track if this is an adaptive routing request
+    is_adaptive_request = request.url.path.startswith("/api/chat")
+    
+    response = await call_next(request)
+    process_time = time.time() - start_time
+    
+    # Track adaptive system specific metrics
+    if is_adaptive_request:
+        await track_adaptive_routing_performance(
+            endpoint=request.url.path,
+            method=request.method,
+            response_time=process_time,
+            status_code=response.status_code,
+            user_agent=request.headers.get("user-agent", "unknown")
+        )
+        
+        # Log slow adaptive requests specifically
+        if process_time > 5.0:  # Slower than target
+            logger.warning(
+                "slow_adaptive_request",
+                endpoint=request.url.path,
+                response_time=process_time,
+                target_time=5.0
+            )
+    
+    response.headers["X-Process-Time"] = str(process_time)
+    response.headers["X-Adaptive-Route"] = "true" if is_adaptive_request else "false"
+    return response
+
+async def track_adaptive_routing_performance(
+    endpoint: str,
+    method: str, 
+    response_time: float,
+    status_code: int,
+    user_agent: str
+):
+    """Track adaptive routing specific performance metrics"""
+    try:
+        # Performance data structure
+        performance_data = {
+            "timestamp": time.time(),
+            "endpoint": endpoint,
+            "method": method,
+            "response_time": response_time,
+            "status_code": status_code,
+            "success": 200 <= status_code < 400,
+            "user_agent": user_agent
+        }
+        
+        # Log performance metrics
+        logger.info("adaptive_performance", **performance_data)
+        
+        # Store in cache for analysis (if cache is available)
+        try:
+            from app.api.dependencies import get_cache_manager
+            cache_manager = get_cache_manager()
+            if cache_manager:
+                cache_key = f"adaptive_perf:{int(time.time())}"
+                await cache_manager.set(
+                    cache_key, 
+                    performance_data, 
+                    ttl=3600  # 1 hour retention
+                )
+        except Exception:
+            pass  # Cache unavailable, continue without it
+            
+    except Exception as e:
+        logger.error("adaptive_performance_tracking_failed", error=str(e))

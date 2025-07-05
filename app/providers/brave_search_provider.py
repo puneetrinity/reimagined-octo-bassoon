@@ -49,6 +49,7 @@ class BraveSearchProvider(BaseProvider):
             "news": f"{config.base_url}/news/search",
             "images": f"{config.base_url}/images/search",
         }
+        self._demo_mode = False
 
     async def initialize(self) -> None:
         if not self.config.api_key:
@@ -57,19 +58,39 @@ class BraveSearchProvider(BaseProvider):
                 provider=self.get_provider_name(),
                 error_code="MISSING_API_KEY",
             )
+            
+        # Check for demo/test keys
+        is_demo_key = (
+            self.config.api_key.startswith("demo_") or 
+            self.config.api_key == "your_brave_key_here"
+        )
+        
         self._session = await self._create_session()
         try:
-            await self._test_api_connection()
-            self._initialized = True
-            self.logger.info(f"Initialized {self.get_provider_name()}")
+            if is_demo_key:
+                # Skip API test for demo keys and mark as demo mode
+                self._initialized = True
+                self._demo_mode = True
+                self.logger.info(f"Initialized {self.get_provider_name()} in demo mode")
+            else:
+                await self._test_api_connection()
+                self._initialized = True
+                self._demo_mode = False
+                self.logger.info(f"Initialized {self.get_provider_name()}")
         except Exception as e:
             await self.cleanup()
-            raise ProviderError(
-                message=f"Failed to initialize Brave Search: {str(e)}",
-                provider=self.get_provider_name(),
-                error_code="INITIALIZATION_FAILED",
-                original_error=e,
-            )
+            if is_demo_key:
+                # For demo keys, initialize anyway but in demo mode
+                self._initialized = True
+                self._demo_mode = True
+                self.logger.warning(f"Initialized {self.get_provider_name()} in demo mode due to API error: {str(e)}")
+            else:
+                raise ProviderError(
+                    message=f"Failed to initialize Brave Search: {str(e)}",
+                    provider=self.get_provider_name(),
+                    error_code="INITIALIZATION_FAILED",
+                    original_error=e,
+                )
 
     async def cleanup(self) -> None:
         if self._session:
@@ -91,6 +112,10 @@ class BraveSearchProvider(BaseProvider):
                 error_code="PROVIDER_UNAVAILABLE",
             )
         self._validate_search_query(query)
+
+        # Handle demo mode
+        if getattr(self, '_demo_mode', False):
+            return await self._demo_search(query)
 
         async def _search_operation():
             endpoint = self._endpoints.get(query.search_type, self._endpoints["web"])
@@ -202,3 +227,50 @@ class BraveSearchProvider(BaseProvider):
         ) as response:
             if response.status not in [200, 429]:
                 raise Exception(f"API test failed: {response.status}")
+
+    async def _demo_search(self, query: SearchQuery) -> ProviderResult:
+        """Demo search implementation for testing without real API keys"""
+        # Simulate realistic search results
+        demo_results = [
+            SearchResult(
+                title=f"Demo Result 1: {query.text} - Official Documentation",
+                url="https://docs.example.com/official",
+                snippet=f"Official documentation and guides about {query.text}. Comprehensive information with examples and best practices.",
+                source="brave_search_demo",
+                relevance_score=0.95,
+                metadata={"demo": True, "rank": 1}
+            ),
+            SearchResult(
+                title=f"Demo Result 2: {query.text} - Tutorial Guide",
+                url="https://tutorial.example.com/guide",
+                snippet=f"Step-by-step tutorial for {query.text}. Learn the fundamentals with practical examples.",
+                source="brave_search_demo",
+                relevance_score=0.88,
+                metadata={"demo": True, "rank": 2}
+            ),
+            SearchResult(
+                title=f"Demo Result 3: {query.text} - Research & Analysis",
+                url="https://research.example.com/analysis",
+                snippet=f"In-depth research and analysis of {query.text}. Academic insights and expert opinions.",
+                source="brave_search_demo",
+                relevance_score=0.82,
+                metadata={"demo": True, "rank": 3}
+            )
+        ]
+        
+        # Limit results to requested amount
+        results = demo_results[:query.max_results]
+        
+        from app.providers.base_provider import ProviderResult
+        return ProviderResult(
+            success=True,
+            data=results,
+            cost=0.0,  # Demo mode is free
+            execution_time=0.1,  # Fast demo response
+            metadata={
+                "provider": self.get_provider_name(),
+                "demo_mode": True,
+                "total_results": len(results),
+                "query": query.text
+            }
+        )

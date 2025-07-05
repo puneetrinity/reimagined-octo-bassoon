@@ -382,8 +382,19 @@ class OptimizedSearchSystem:
         """Perform optimized search with performance tracking"""
         start_time = time.time()
         try:
-            # Use the search router to perform search
-            results = await self.search_router.search(query)
+            # Use the search router to perform search with proper parameters
+            budget = kwargs.get("budget", 2.0)
+            quality = kwargs.get("quality", "balanced")
+            max_results = kwargs.get("max_results", 10)
+            
+            results = await self.search_router.search(
+                query=query,
+                budget=budget,
+                quality=quality,
+                max_results=max_results,
+                **kwargs
+            )
+            
             # Update stats
             self.stats["total_searches"] += 1
             response_time = time.time() - start_time
@@ -394,30 +405,64 @@ class OptimizedSearchSystem:
             self.stats["avg_response_time"] = (total_time + response_time) / self.stats[
                 "total_searches"
             ]
-            logger.info(
-                "Optimized search completed",
-                query=query,
-                results_count=len(results),
-                response_time=response_time,
-            )
-            return {
-                "query": query,
-                "results": results,
-                "metadata": {
-                    "response_time": response_time,
-                    "results_count": len(results),
-                    "optimization_applied": True,
-                },
-            }
+            
+            # Extract results data from the search response
+            search_results = results.get("citations", [])
+            if "response" in results:
+                # Format the response to match expected API structure
+                formatted_results = {
+                    "query": query,
+                    "response": results["response"],
+                    "citations": search_results,
+                    "metadata": {
+                        "execution_time": response_time,
+                        "total_cost": results.get("metadata", {}).get("total_cost", 0.0),
+                        "search_results_count": len(search_results),
+                        "quality_used": quality,
+                        "budget_used": budget - results.get("metadata", {}).get("budget_used", 0.0),
+                        "confidence": results.get("metadata", {}).get("confidence", 0.8),
+                        "optimization_applied": True,
+                        **results.get("metadata", {})
+                    },
+                }
+                logger.info(
+                    "Optimized search completed",
+                    query=query,
+                    results_count=len(search_results),
+                    response_time=response_time,
+                )
+                return formatted_results
+            else:
+                # Fallback if response format is unexpected
+                logger.warning("Unexpected search response format", results=results)
+                return {
+                    "query": query,
+                    "response": f"Search completed for: {query}",
+                    "citations": [],
+                    "metadata": {
+                        "execution_time": response_time,
+                        "total_cost": 0.0,
+                        "search_results_count": 0,
+                        "quality_used": quality,
+                        "budget_used": 0.0,
+                        "confidence": 0.5,
+                        "optimization_applied": True,
+                    },
+                }
         except Exception as e:
-            logger.error(f"Optimized search failed: {e}")
+            logger.error(f"Optimized search failed: {e}", exc_info=True)
             return {
                 "query": query,
-                "results": [],
+                "response": f"Search failed for: {query}",
+                "citations": [],
                 "error": str(e),
                 "metadata": {
-                    "response_time": time.time() - start_time,
-                    "results_count": 0,
+                    "execution_time": time.time() - start_time,
+                    "total_cost": 0.0,
+                    "search_results_count": 0,
+                    "quality_used": kwargs.get("quality", "balanced"),
+                    "budget_used": 0.0,
+                    "confidence": 0.0,
                     "optimization_applied": False,
                 },
             }

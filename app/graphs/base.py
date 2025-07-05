@@ -73,6 +73,7 @@ class GraphState:
     cost_budget_remaining: float = 20.0
     max_cost: Optional[float] = None  # Maximum allowed cost
     max_execution_time: float = 30.0
+    max_results: int = 10  # Maximum number of search results to return
     quality_requirement: str = "balanced"  # minimal, balanced, high, premium
     # Execution metadata
     start_time: datetime = field(default_factory=datetime.now)

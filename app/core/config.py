@@ -7,9 +7,15 @@ Environment-based configuration with sensible defaults
 import os
 from functools import lru_cache
 from typing import Optional
+from pathlib import Path
 
 from pydantic import Field
 from pydantic_settings import BaseSettings
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+env_file = Path(__file__).parent.parent.parent / ".env"
+load_dotenv(env_file)
 
 
 def get_ollama_host() -> str:
@@ -118,6 +124,14 @@ class Settings(BaseSettings):
 
     # Database (for future use)
     database_url: Optional[str] = None
+    
+    # Model configuration to enable loading from .env files
+    model_config = {
+        "env_file": ".env",
+        "env_file_encoding": "utf-8",
+        "case_sensitive": False,
+        "extra": "ignore"
+    }
 
     # New search provider settings
     BRAVE_API_KEY: Optional[str] = None
@@ -131,12 +145,11 @@ class Settings(BaseSettings):
     DEFAULT_QUALITY_REQUIREMENT: str = "standard"
     MAX_SEARCH_RESULTS: int = 10
 
+    # Model configuration to enable loading from .env files
     model_config = {
         "env_file": ".env",
-        "case_sensitive": True,
-        "protected_namespaces": ("settings_",),
-        "env_prefix": "",
-        "populate_by_name": True,
+        "env_file_encoding": "utf-8",
+        "case_sensitive": False,
         "extra": "ignore",
     }
 

@@ -48,6 +48,7 @@ async def search_health(request: Request):
 @router.post("/basic", response_model=SearchResponse)
 @log_performance("basic_search")
 async def basic_search(
+    req: Request,
     search_request: SearchRequest = Body(..., embed=False),
     current_user: dict = Depends(get_current_user),
 ):
@@ -69,26 +70,111 @@ async def basic_search(
         ),
         correlation_id=correlation_id,
     )
-    # Simulate a search result for test
-    response_text = f"Test search response for: {search_request.query}"
-    citations = []
-    metadata = {"execution_time": 0.01, "total_cost": 0.0, "query_id": "test-query-123"}
-    search_data_obj = SearchData(
-        query=search_request.query,
-        results=[],
-        summary=response_text,
-        total_results=0,
-        search_time=time.time() - start_time,
-        sources_consulted=citations,
-    )
-    response_metadata = {
-        "query_id": query_id,
-        "correlation_id": correlation_id,
-        "execution_time": time.time() - start_time,
-        "cost": metadata.get("total_cost", 0.0),
-        "models_used": [],
-        "confidence": 1.0,
-    }
+    
+    try:
+        # Get search system from app state
+        app_state = getattr(req.app.state, "app_state", {})
+        
+        search_system = app_state.get("search_system")
+        
+        if search_system and hasattr(search_system, 'execute_optimized_search'):
+            # Execute real search using the search system
+            logger.debug("[basic_search] Using real search system", correlation_id=correlation_id)
+            
+            search_result = await safe_execute(
+                search_system.execute_optimized_search,
+                query=search_request.query,
+                budget=getattr(search_request, 'budget', 2.0),
+                quality=getattr(search_request, 'quality', 'standard'),
+                max_results=getattr(search_request, 'max_results', 10),
+                timeout=30.0,
+            )
+            
+            search_result = await ensure_awaited(search_result)
+            
+            # Extract real search results
+            search_results = search_result.get("citations", [])
+            response_text = search_result.get("response", f"Search results for: {search_request.query}")
+            sources_consulted = _extract_real_sources(search_result)
+            
+            # Create search data object with real results
+            search_data_obj = SearchData(
+                query=search_request.query,
+                results=search_results,
+                summary=response_text,
+                total_results=len(search_results),
+                search_time=search_result["metadata"]["execution_time"],
+                sources_consulted=sources_consulted,
+            )
+            
+            response_metadata = {
+                "query_id": query_id,
+                "correlation_id": correlation_id,
+                "execution_time": search_result["metadata"]["execution_time"],
+                "cost": search_result["metadata"].get("total_cost", 0.0),
+                "models_used": search_result["metadata"].get("models_used", []),
+                "confidence": search_result["metadata"].get("confidence", 0.8),
+            }
+            
+            logger.info(
+                "Real search completed successfully",
+                query=search_request.query,
+                results_count=len(search_results),
+                execution_time=response_metadata["execution_time"],
+                cost=response_metadata["cost"],
+                correlation_id=correlation_id,
+            )
+            
+        else:
+            # Fallback to mock response if search system not available
+            logger.warning("[basic_search] Search system not available, using fallback", correlation_id=correlation_id)
+            
+            response_text = f"Mock search response for: {search_request.query} (Search system not initialized)"
+            search_data_obj = SearchData(
+                query=search_request.query,
+                results=[],
+                summary=response_text,
+                total_results=0,
+                search_time=time.time() - start_time,
+                sources_consulted=[],
+            )
+            
+            response_metadata = {
+                "query_id": query_id,
+                "correlation_id": correlation_id,
+                "execution_time": time.time() - start_time,
+                "cost": 0.0,
+                "models_used": [],
+                "confidence": 1.0,
+            }
+            
+    except Exception as e:
+        # Error handling - return safe fallback response
+        logger.error(
+            f"Search execution failed: {str(e)}",
+            query=search_request.query,
+            correlation_id=correlation_id,
+            exc_info=True
+        )
+        
+        response_text = f"Search temporarily unavailable for: {search_request.query}"
+        search_data_obj = SearchData(
+            query=search_request.query,
+            results=[],
+            summary=response_text,
+            total_results=0,
+            search_time=time.time() - start_time,
+            sources_consulted=[],
+        )
+        
+        response_metadata = {
+            "query_id": query_id,
+            "correlation_id": correlation_id,
+            "execution_time": time.time() - start_time,
+            "cost": 0.0,
+            "models_used": [],
+            "confidence": 0.0,
+        }
     # Ensure we do not return a coroutine (fix for 500 error)
     result = create_success_response(
         data=search_data_obj,
