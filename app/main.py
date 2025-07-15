@@ -22,6 +22,7 @@ from app.api import chat, search, research
 from app.api import unified_search
 from app.api import ui
 from app.api import chat_unified
+from app.api import native_search
 from app.api.security import SecurityMiddleware
 from app.cache.redis_client import CacheManager
 from app.core.config import get_settings
@@ -274,6 +275,28 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             app_state["unified_search_graph"] = unified_search_graph
         else:
             logger.info("ℹ️ Unified search integration disabled")
+
+        # Initialize Native Search Engine
+        async def init_native_search():
+            try:
+                embedding_dim = int(os.getenv("EMBEDDING_DIM", "384"))
+                use_gpu = os.getenv("USE_GPU", "false").lower() == "true"
+                
+                search_engine, document_processor = native_search.initialize_native_search(
+                    embedding_dim=embedding_dim,
+                    use_gpu=use_gpu
+                )
+                
+                logger.info("✅ Native search engine initialized successfully")
+                return {"search_engine": search_engine, "document_processor": document_processor}
+            except Exception as e:
+                logger.error(f"❌ Failed to initialize native search engine: {e}")
+                return None
+
+        native_search_components = await monitor.initialize_component(
+            "native_search", init_native_search
+        )
+        app_state["native_search"] = native_search_components
 
         # Initialize API key status for provider health checks
         def init_api_key_status():
@@ -843,6 +866,12 @@ app.include_router(
     unified_search.router,
     prefix="/api/v1/unified_search",
     tags=["Unified Search"]
+)
+
+# Include native search router
+app.include_router(
+    native_search.router,
+    tags=["Native Search"]
 )
 
 

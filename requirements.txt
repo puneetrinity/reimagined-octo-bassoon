@@ -31,6 +31,13 @@ asgi-lifespan>=1.0.0
 pandas>=2.0.0
 numpy>=1.24.0
 
+# Native search engine dependencies
+faiss-cpu>=1.7.0
+sentence-transformers>=2.2.0
+mmh3>=3.0.0
+numba>=0.57.0
+scikit-learn>=1.3.0
+
 # Ollama client
 ollama>=0.1.0
 

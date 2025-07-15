@@ -97,6 +97,14 @@ class Settings(BaseSettings):
 
     # Performance Targets
     target_response_time: float = 2.5
+
+    # Native Search Engine Configuration
+    EMBEDDING_MODEL_NAME: str = "all-MiniLM-L6-v2"
+    EMBEDDING_DIM: int = 384
+    USE_GPU: bool = False
+    INDEX_PATH: str = "indexes"
+    CHUNK_SIZE: int = 1000
+    CHUNK_OVERLAP: int = 100
     target_local_processing: float = 0.85
     target_cache_hit_rate: float = 0.80
 
