@@ -35,6 +35,19 @@ class ProviderResult:
     provider_name: str = ""
 
 
+@dataclass
+class ProviderResponse:
+    """Response wrapper for provider operations."""
+    success: bool
+    data: Any = None
+    error: Optional[str] = None
+    execution_time: float = 0.0
+    cost: float = 0.0
+    metadata: Dict[str, Any] = field(default_factory=dict)
+    provider_name: str = ""
+    status_code: Optional[int] = None
+
+
 class ProviderError(Exception):
     def __init__(
         self,

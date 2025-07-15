@@ -97,6 +97,7 @@ async def chat_complete(
     background_tasks: BackgroundTasks = None,
     request: Request = None,
 ):
+    global chat_graph, model_manager, cache_manager
     # --- Begin: Accept both flat and wrapped payloads ---
     if hasattr(chat_request, 'dict'):
         data = chat_request.model_dump()
@@ -232,7 +233,6 @@ async def chat_complete(
             },
         )
         # Ensure chat_graph is initialized before handling chat requests
-        global chat_graph, model_manager, cache_manager
         if chat_graph is None:
             if model_manager is None:
                 # Use dependency injection to get the properly initialized instance

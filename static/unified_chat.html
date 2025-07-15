@@ -1,0 +1,1138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unified AI Search & Chat System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .app-container {
+            display: flex;
+            height: 100vh;
+            max-width: 1400px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            margin: 20px;
+            overflow: hidden;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 300px;
+            background: #2c3e50;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            border-radius: 20px 0 0 20px;
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            background: #34495e;
+            border-radius: 20px 0 0 0;
+        }
+
+        .sidebar-header h1 {
+            font-size: 18px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .system-status {
+            font-size: 12px;
+            opacity: 0.8;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #27ae60;
+        }
+
+        .status-dot.warning {
+            background: #f39c12;
+        }
+
+        .status-dot.error {
+            background: #e74c3c;
+        }
+
+        .chat-modes {
+            padding: 20px;
+            flex: 1;
+        }
+
+        .mode-selector {
+            margin-bottom: 20px;
+        }
+
+        .mode-button {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: left;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .mode-button:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .mode-button.active {
+            background: #3498db;
+            box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
+        }
+
+        .search-settings {
+            margin-top: 20px;
+        }
+
+        .search-settings h3 {
+            margin-bottom: 15px;
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .setting-item {
+            margin-bottom: 15px;
+        }
+
+        .setting-item label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 12px;
+            opacity: 0.8;
+        }
+
+        .setting-item select,
+        .setting-item input {
+            width: 100%;
+            padding: 8px;
+            border: none;
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            font-size: 12px;
+        }
+
+        .setting-item select option {
+            background: #2c3e50;
+            color: white;
+        }
+
+        /* Main Chat Area */
+        .chat-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: white;
+        }
+
+        .chat-header {
+            padding: 20px 30px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+            display: flex;
+            align-items: center;
+            justify-content: between;
+        }
+
+        .chat-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #2c3e50;
+            flex: 1;
+        }
+
+        .chat-controls {
+            display: flex;
+            gap: 10px;
+        }
+
+        .control-button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 20px;
+            background: #e9ecef;
+            color: #6c757d;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.3s ease;
+        }
+
+        .control-button:hover {
+            background: #3498db;
+            color: white;
+        }
+
+        /* Messages Area */
+        .messages-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px 30px;
+            background: #f8f9fa;
+        }
+
+        .message {
+            margin-bottom: 20px;
+            display: flex;
+            align-items: flex-start;
+            gap: 15px;
+        }
+
+        .message.user {
+            flex-direction: row-reverse;
+        }
+
+        .message-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: white;
+            font-size: 14px;
+        }
+
+        .message.user .message-avatar {
+            background: #3498db;
+        }
+
+        .message.assistant .message-avatar {
+            background: #2c3e50;
+        }
+
+        .message.system .message-avatar {
+            background: #27ae60;
+        }
+
+        .message-content {
+            flex: 1;
+            max-width: 70%;
+        }
+
+        .message-bubble {
+            padding: 15px 20px;
+            border-radius: 18px;
+            word-wrap: break-word;
+            position: relative;
+        }
+
+        .message.user .message-bubble {
+            background: #3498db;
+            color: white;
+            border-bottom-right-radius: 5px;
+        }
+
+        .message.assistant .message-bubble {
+            background: white;
+            color: #2c3e50;
+            border: 1px solid #e9ecef;
+            border-bottom-left-radius: 5px;
+        }
+
+        .message.system .message-bubble {
+            background: #27ae60;
+            color: white;
+            border-bottom-left-radius: 5px;
+        }
+
+        .message-meta {
+            font-size: 11px;
+            color: #6c757d;
+            margin-top: 5px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .search-results {
+            margin-top: 15px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 15px;
+        }
+
+        .search-result-item {
+            padding: 10px;
+            margin-bottom: 10px;
+            background: white;
+            border-radius: 8px;
+            border-left: 4px solid #3498db;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .search-result-item:hover {
+            transform: translateX(5px);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .search-result-title {
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+
+        .search-result-snippet {
+            font-size: 13px;
+            color: #6c757d;
+            line-height: 1.4;
+        }
+
+        .search-result-meta {
+            font-size: 11px;
+            color: #9ca3af;
+            margin-top: 5px;
+            display: flex;
+            gap: 15px;
+        }
+
+        /* Input Area */
+        .input-container {
+            padding: 20px 30px;
+            background: white;
+            border-top: 1px solid #e9ecef;
+        }
+
+        .input-wrapper {
+            display: flex;
+            align-items: flex-end;
+            gap: 15px;
+            max-width: 100%;
+        }
+
+        .message-input {
+            flex: 1;
+            min-height: 20px;
+            max-height: 120px;
+            padding: 15px 20px;
+            border: 2px solid #e9ecef;
+            border-radius: 25px;
+            font-family: inherit;
+            font-size: 14px;
+            resize: none;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        .message-input:focus {
+            border-color: #3498db;
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+        }
+
+        .send-button {
+            width: 50px;
+            height: 50px;
+            border: none;
+            border-radius: 50%;
+            background: #3498db;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            font-size: 18px;
+        }
+
+        .send-button:hover {
+            background: #2980b9;
+            transform: scale(1.05);
+        }
+
+        .send-button:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Loading Animation */
+        .typing-indicator {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            padding: 15px 20px;
+            background: white;
+            border-radius: 18px;
+            border-bottom-left-radius: 5px;
+            border: 1px solid #e9ecef;
+        }
+
+        .typing-dot {
+            width: 8px;
+            height: 8px;
+            background: #bdc3c7;
+            border-radius: 50%;
+            animation: typing 1.4s infinite ease-in-out;
+        }
+
+        .typing-dot:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .typing-dot:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes typing {
+            0%, 60%, 100% {
+                transform: translateY(0);
+                opacity: 0.5;
+            }
+            30% {
+                transform: translateY(-10px);
+                opacity: 1;
+            }
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .app-container {
+                margin: 10px;
+                border-radius: 10px;
+            }
+
+            .sidebar {
+                width: 280px;
+            }
+
+            .messages-container {
+                padding: 15px 20px;
+            }
+
+            .input-container {
+                padding: 15px 20px;
+            }
+
+            .message-content {
+                max-width: 85%;
+            }
+        }
+
+        /* Utility Classes */
+        .hidden {
+            display: none !important;
+        }
+
+        .fade-in {
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h1>🤖 AI Assistant</h1>
+                <div class="system-status">
+                    <div class="status-item">
+                        <div class="status-dot" id="chat-status"></div>
+                        <span id="chat-status-text">Chat: Loading...</span>
+                    </div>
+                    <div class="status-item">
+                        <div class="status-dot" id="search-status"></div>
+                        <span id="search-status-text">Search: Loading...</span>
+                    </div>
+                    <div class="status-item">
+                        <div class="status-dot" id="ml-status"></div>
+                        <span id="ml-status-text">ML: Loading...</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="chat-modes">
+                <div class="mode-selector">
+                    <button class="mode-button active" data-mode="unified" onclick="setMode('unified')">
+                        🚀 Unified Search & Chat
+                    </button>
+                    <button class="mode-button" data-mode="chat" onclick="setMode('chat')">
+                        💬 AI Conversation
+                    </button>
+                    <button class="mode-button" data-mode="search" onclick="setMode('search')">
+                        🔍 Document Search
+                    </button>
+                    <button class="mode-button" data-mode="research" onclick="setMode('research')">
+                        📚 Research Assistant
+                    </button>
+                </div>
+
+                <div class="search-settings">
+                    <h3>⚙️ Search Settings</h3>
+                    <div class="setting-item">
+                        <label>Max Results</label>
+                        <select id="maxResults">
+                            <option value="5">5 results</option>
+                            <option value="10" selected>10 results</option>
+                            <option value="20">20 results</option>
+                            <option value="50">50 results</option>
+                        </select>
+                    </div>
+                    <div class="setting-item">
+                        <label>Search Provider</label>
+                        <select id="searchProvider">
+                            <option value="unified">🚀 Unified (Auto)</option>
+                            <option value="documents">📄 Documents Only</option>
+                            <option value="web">🌐 Web Only</option>
+                            <option value="academic">🎓 Academic</option>
+                        </select>
+                    </div>
+                    <div class="setting-item">
+                        <label>Response Style</label>
+                        <select id="responseStyle">
+                            <option value="conversational">💬 Conversational</option>
+                            <option value="detailed">📝 Detailed</option>
+                            <option value="concise">⚡ Concise</option>
+                            <option value="technical">🔧 Technical</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Chat Area -->
+        <div class="chat-container">
+            <div class="chat-header">
+                <div class="chat-title" id="chatTitle">🚀 Unified AI Search & Chat</div>
+                <div class="chat-controls">
+                    <button class="control-button" onclick="clearChat()">Clear Chat</button>
+                    <button class="control-button" onclick="exportChat()">Export</button>
+                    <button class="control-button" onclick="toggleSettings()">Settings</button>
+                </div>
+            </div>
+
+            <div class="messages-container" id="messagesContainer">
+                <div class="message system fade-in">
+                    <div class="message-avatar">🤖</div>
+                    <div class="message-content">
+                        <div class="message-bubble">
+                            Welcome to the Unified AI Search & Chat System! 🚀<br><br>
+                            I combine ultra-fast document search with intelligent AI conversation. Try asking me:
+                            <br>• "Search for machine learning papers"
+                            <br>• "Explain quantum computing"
+                            <br>• "Find documents about Python programming"
+                            <br>• "Research artificial intelligence trends"
+                        </div>
+                        <div class="message-meta">
+                            <span>System • Just now</span>
+                            <span>🎯 Ready to help</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="input-container">
+                <div class="input-wrapper">
+                    <textarea 
+                        id="messageInput" 
+                        class="message-input" 
+                        placeholder="Ask me anything... (Press Enter to send, Shift+Enter for new line)"
+                        rows="1"
+                    ></textarea>
+                    <button class="send-button" id="sendButton" onclick="sendMessage()">
+                        ➤
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const CONFIG = {
+            UBIQUITOUS_BASE: 'http://localhost:8000',
+            IDEAL_OCTO_BASE: 'http://localhost:8001',
+            MAX_RETRIES: 3,
+            RETRY_DELAY: 1000
+        };
+
+        // Application State
+        let currentMode = 'unified';
+        let isLoading = false;
+        let chatHistory = [];
+        let systemStatus = {
+            chat: false,
+            search: false,
+            ml: false
+        };
+
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeApp();
+            setupEventListeners();
+            checkSystemStatus();
+        });
+
+        function initializeApp() {
+            // Auto-resize textarea
+            const input = document.getElementById('messageInput');
+            input.addEventListener('input', function() {
+                this.style.height = 'auto';
+                this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+            });
+
+            // Add welcome message to history
+            chatHistory.push({
+                type: 'system',
+                content: 'Welcome to the Unified AI Search & Chat System!',
+                timestamp: new Date()
+            });
+        }
+
+        function setupEventListeners() {
+            const input = document.getElementById('messageInput');
+            
+            input.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    sendMessage();
+                }
+            });
+
+            // Auto-scroll to bottom when new messages are added
+            const container = document.getElementById('messagesContainer');
+            const observer = new MutationObserver(() => {
+                container.scrollTop = container.scrollHeight;
+            });
+            observer.observe(container, { childList: true });
+        }
+
+        async function checkSystemStatus() {
+            // Check ubiquitous-octo-invention status
+            try {
+                const response = await fetch(`${CONFIG.UBIQUITOUS_BASE}/health`);
+                if (response.ok) {
+                    updateStatus('chat', true, 'Chat: Online');
+                } else {
+                    updateStatus('chat', false, 'Chat: Offline');
+                }
+            } catch (error) {
+                updateStatus('chat', false, 'Chat: Offline');
+            }
+
+            // Check ideal-octo-goggles status
+            try {
+                const response = await fetch(`${CONFIG.IDEAL_OCTO_BASE}/health`);
+                if (response.ok) {
+                    updateStatus('search', true, 'Search: Online');
+                    
+                    // Check ML status
+                    try {
+                        const mlResponse = await fetch(`${CONFIG.IDEAL_OCTO_BASE}/api/status`);
+                        if (mlResponse.ok) {
+                            const data = await mlResponse.json();
+                            const mlActive = data.ml_components?.sentence_transformers;
+                            updateStatus('ml', mlActive, `ML: ${mlActive ? 'Active' : 'Fallback'}`);
+                        }
+                    } catch (error) {
+                        updateStatus('ml', false, 'ML: Unknown');
+                    }
+                } else {
+                    updateStatus('search', false, 'Search: Offline');
+                    updateStatus('ml', false, 'ML: Offline');
+                }
+            } catch (error) {
+                updateStatus('search', false, 'Search: Offline');
+                updateStatus('ml', false, 'ML: Offline');
+            }
+        }
+
+        function updateStatus(service, isOnline, text) {
+            systemStatus[service] = isOnline;
+            const statusDot = document.getElementById(`${service}-status`);
+            const statusText = document.getElementById(`${service}-status-text`);
+            
+            statusDot.className = `status-dot ${isOnline ? '' : 'error'}`;
+            statusText.textContent = text;
+        }
+
+        function setMode(mode) {
+            currentMode = mode;
+            
+            // Update active button
+            document.querySelectorAll('.mode-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.querySelector(`[data-mode="${mode}"]`).classList.add('active');
+            
+            // Update chat title
+            const titles = {
+                unified: '🚀 Unified AI Search & Chat',
+                chat: '💬 AI Conversation',
+                search: '🔍 Document Search',
+                research: '📚 Research Assistant'
+            };
+            document.getElementById('chatTitle').textContent = titles[mode];
+            
+            // Add mode change message
+            addMessage('system', `Switched to ${titles[mode]} mode`, {
+                showInChat: true
+            });
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const message = input.value.trim();
+            
+            if (!message || isLoading) return;
+            
+            input.value = '';
+            input.style.height = 'auto';
+            isLoading = true;
+            
+            // Add user message
+            addMessage('user', message);
+            
+            // Show typing indicator
+            showTypingIndicator();
+            
+            try {
+                let response;
+                switch (currentMode) {
+                    case 'unified':
+                        response = await handleUnifiedRequest(message);
+                        break;
+                    case 'chat':
+                        response = await handleChatRequest(message);
+                        break;
+                    case 'search':
+                        response = await handleSearchRequest(message);
+                        break;
+                    case 'research':
+                        response = await handleResearchRequest(message);
+                        break;
+                }
+                
+                hideTypingIndicator();
+                
+                if (response) {
+                    addMessage('assistant', response.content, {
+                        searchResults: response.searchResults,
+                        metadata: response.metadata
+                    });
+                } else {
+                    addMessage('assistant', 'Sorry, I encountered an error processing your request. Please try again.');
+                }
+                
+            } catch (error) {
+                hideTypingIndicator();
+                addMessage('assistant', `Error: ${error.message}`);
+                console.error('Chat error:', error);
+            } finally {
+                isLoading = false;
+                updateSendButton();
+            }
+        }
+
+        async function handleUnifiedRequest(message) {
+            // Try unified search first if search services are available
+            if (systemStatus.search) {
+                try {
+                    const searchResponse = await performSearch(message);
+                    let content = `I found ${searchResponse.total_found || 0} relevant results for your query.`;
+                    
+                    if (searchResponse.results && searchResponse.results.length > 0) {
+                        content += ` Here's what I discovered:\n\n`;
+                        content += generateSearchSummary(searchResponse.results);
+                    }
+                    
+                    // If chat is available, enhance with AI response
+                    if (systemStatus.chat) {
+                        try {
+                            const chatResponse = await performChat(message, searchResponse);
+                            content = chatResponse.content || content;
+                        } catch (chatError) {
+                            console.warn('Chat enhancement failed:', chatError);
+                        }
+                    }
+                    
+                    return {
+                        content,
+                        searchResults: searchResponse.results,
+                        metadata: {
+                            provider: 'unified',
+                            searchTime: searchResponse.response_time_ms,
+                            totalFound: searchResponse.total_found
+                        }
+                    };
+                } catch (searchError) {
+                    console.warn('Search failed, falling back to chat:', searchError);
+                    // Fall back to chat if search fails
+                    if (systemStatus.chat) {
+                        return await handleChatRequest(message);
+                    }
+                }
+            }
+            
+            // Fall back to chat only
+            if (systemStatus.chat) {
+                return await handleChatRequest(message);
+            }
+            
+            throw new Error('No services available');
+        }
+
+        async function handleChatRequest(message) {
+            if (!systemStatus.chat) {
+                throw new Error('Chat service is not available');
+            }
+            
+            const response = await performChat(message);
+            return {
+                content: response.content,
+                metadata: {
+                    provider: 'chat',
+                    model: response.model || 'unknown'
+                }
+            };
+        }
+
+        async function handleSearchRequest(message) {
+            if (!systemStatus.search) {
+                throw new Error('Search service is not available');
+            }
+            
+            const searchResponse = await performSearch(message);
+            const content = `Found ${searchResponse.total_found || 0} results in ${searchResponse.response_time_ms || 0}ms`;
+            
+            return {
+                content,
+                searchResults: searchResponse.results,
+                metadata: {
+                    provider: 'search',
+                    searchTime: searchResponse.response_time_ms,
+                    totalFound: searchResponse.total_found
+                }
+            };
+        }
+
+        async function handleResearchRequest(message) {
+            // Combine search and chat for research
+            if (!systemStatus.search && !systemStatus.chat) {
+                throw new Error('Research services are not available');
+            }
+            
+            let searchResults = null;
+            let content = '';
+            
+            // Perform search if available
+            if (systemStatus.search) {
+                try {
+                    const searchResponse = await performSearch(message);
+                    searchResults = searchResponse.results;
+                    content += `Research findings (${searchResponse.total_found} sources):\n\n`;
+                    content += generateResearchSummary(searchResponse.results);
+                } catch (error) {
+                    console.warn('Research search failed:', error);
+                }
+            }
+            
+            // Enhance with AI analysis if available
+            if (systemStatus.chat) {
+                try {
+                    const researchPrompt = `Analyze and synthesize the following research query: "${message}"${searchResults ? '\n\nBased on these sources:\n' + JSON.stringify(searchResults.slice(0, 3)) : ''}`;
+                    const chatResponse = await performChat(researchPrompt);
+                    content = chatResponse.content || content;
+                } catch (error) {
+                    console.warn('Research analysis failed:', error);
+                }
+            }
+            
+            return {
+                content: content || 'Research completed, but no results to display.',
+                searchResults,
+                metadata: {
+                    provider: 'research',
+                    mode: 'comprehensive'
+                }
+            };
+        }
+
+        async function performSearch(query) {
+            const maxResults = document.getElementById('maxResults').value;
+            
+            const searchData = {
+                query: query,
+                num_results: parseInt(maxResults)
+            };
+            
+            const response = await fetch(`${CONFIG.IDEAL_OCTO_BASE}/search`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(searchData)
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Search failed: ${response.status}`);
+            }
+            
+            return await response.json();
+        }
+
+        async function performChat(message, context = null) {
+            const responseStyle = document.getElementById('responseStyle').value;
+            const maxResults = parseInt(document.getElementById('maxResults').value);
+            
+            const chatData = {
+                message: message,
+                mode: currentMode,
+                context: context,
+                max_results: maxResults,
+                include_search: currentMode !== 'chat'
+            };
+            
+            const response = await fetch(`${CONFIG.UBIQUITOUS_BASE}/api/v1/chat/unified`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(chatData)
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Chat API failed: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            
+            if (!data.success) {
+                throw new Error(data.message || 'Chat request failed');
+            }
+            
+            return {
+                content: data.message,
+                searchResults: data.search_results,
+                metadata: data.metadata
+            };
+        }
+
+        function generateSearchSummary(results) {
+            if (!results || results.length === 0) return 'No specific results to summarize.';
+            
+            return results.slice(0, 3).map((result, index) => 
+                `${index + 1}. **${result.title || 'Untitled'}**\n   ${result.content?.substring(0, 150)}...`
+            ).join('\n\n');
+        }
+
+        function generateResearchSummary(results) {
+            if (!results || results.length === 0) return 'No research sources found.';
+            
+            return results.slice(0, 5).map((result, index) => 
+                `📄 Source ${index + 1}: ${result.title || 'Document'}\n   Relevance: ${(result.score * 100).toFixed(1)}%\n   ${result.content?.substring(0, 200)}...`
+            ).join('\n\n');
+        }
+
+        function addMessage(type, content, options = {}) {
+            const container = document.getElementById('messagesContainer');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type} fade-in`;
+            
+            const avatarMap = {
+                user: '👤',
+                assistant: '🤖',
+                system: '⚙️'
+            };
+            
+            const timestamp = new Date().toLocaleTimeString();
+            let metaInfo = `${type === 'user' ? 'You' : type === 'system' ? 'System' : 'Assistant'} • ${timestamp}`;
+            
+            if (options.metadata) {
+                const meta = options.metadata;
+                if (meta.searchTime) {
+                    metaInfo += ` • ⚡ ${meta.searchTime.toFixed(1)}ms`;
+                }
+                if (meta.totalFound) {
+                    metaInfo += ` • 📊 ${meta.totalFound} found`;
+                }
+                if (meta.provider) {
+                    metaInfo += ` • 🔧 ${meta.provider}`;
+                }
+            }
+            
+            messageDiv.innerHTML = `
+                <div class="message-avatar">${avatarMap[type]}</div>
+                <div class="message-content">
+                    <div class="message-bubble">${formatMessage(content)}</div>
+                    <div class="message-meta">${metaInfo}</div>
+                    ${options.searchResults ? createSearchResults(options.searchResults) : ''}
+                </div>
+            `;
+            
+            container.appendChild(messageDiv);
+            
+            // Add to chat history
+            chatHistory.push({
+                type,
+                content,
+                timestamp: new Date(),
+                metadata: options.metadata
+            });
+            
+            // Keep history manageable
+            if (chatHistory.length > 100) {
+                chatHistory = chatHistory.slice(-50);
+            }
+        }
+
+        function formatMessage(content) {
+            // Simple markdown-like formatting
+            return content
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                .replace(/\n/g, '<br>');
+        }
+
+        function createSearchResults(results) {
+            if (!results || results.length === 0) return '';
+            
+            const resultsHtml = results.slice(0, 5).map(result => `
+                <div class="search-result-item" onclick="openResult('${result.url || '#'}')">
+                    <div class="search-result-title">${result.title || 'Untitled Document'}</div>
+                    <div class="search-result-snippet">${result.content?.substring(0, 200) || 'No preview available'}...</div>
+                    <div class="search-result-meta">
+                        <span>⭐ Score: ${(result.score * 100).toFixed(1)}%</span>
+                        <span>📁 Source: ${result.source || 'Unknown'}</span>
+                        ${result.url ? `<span>🔗 <a href="${result.url}" target="_blank">Open</a></span>` : ''}
+                    </div>
+                </div>
+            `).join('');
+            
+            return `<div class="search-results">
+                <strong>📊 Search Results (${results.length} shown):</strong>
+                ${resultsHtml}
+            </div>`;
+        }
+
+        function showTypingIndicator() {
+            const container = document.getElementById('messagesContainer');
+            const typingDiv = document.createElement('div');
+            typingDiv.className = 'message assistant';
+            typingDiv.id = 'typingIndicator';
+            typingDiv.innerHTML = `
+                <div class="message-avatar">🤖</div>
+                <div class="message-content">
+                    <div class="typing-indicator">
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                    </div>
+                </div>
+            `;
+            container.appendChild(typingDiv);
+            updateSendButton();
+        }
+
+        function hideTypingIndicator() {
+            const indicator = document.getElementById('typingIndicator');
+            if (indicator) {
+                indicator.remove();
+            }
+            updateSendButton();
+        }
+
+        function updateSendButton() {
+            const sendButton = document.getElementById('sendButton');
+            const input = document.getElementById('messageInput');
+            
+            sendButton.disabled = isLoading || !input.value.trim();
+            sendButton.innerHTML = isLoading ? '⏳' : '➤';
+        }
+
+        function clearChat() {
+            if (confirm('Clear all chat messages?')) {
+                document.getElementById('messagesContainer').innerHTML = `
+                    <div class="message system fade-in">
+                        <div class="message-avatar">🤖</div>
+                        <div class="message-content">
+                            <div class="message-bubble">
+                                Chat cleared! How can I help you today?
+                            </div>
+                            <div class="message-meta">
+                                <span>System • Just now</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                chatHistory = [];
+            }
+        }
+
+        function exportChat() {
+            const data = {
+                export_date: new Date().toISOString(),
+                mode: currentMode,
+                history: chatHistory
+            };
+            
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `chat-export-${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function toggleSettings() {
+            alert('Settings panel would open here. This could include:\n• API endpoints\n• Model preferences\n• UI themes\n• Export options');
+        }
+
+        function openResult(url) {
+            if (url && url !== '#') {
+                window.open(url, '_blank');
+            }
+        }
+
+        // Update send button state when input changes
+        document.getElementById('messageInput').addEventListener('input', updateSendButton);
+        
+        // Periodic status check
+        setInterval(checkSystemStatus, 30000); // Check every 30 seconds
+    </script>
+</body>
+</html>

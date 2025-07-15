@@ -16,8 +16,12 @@ import uvicorn
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 
-from app.api import chat, research, search
+from app.api import chat, search, research
+from app.api import unified_search
+from app.api import ui
+from app.api import chat_unified
 from app.api.security import SecurityMiddleware
 from app.cache.redis_client import CacheManager
 from app.core.config import get_settings
@@ -26,6 +30,19 @@ from app.core.logging import (
     get_correlation_id,
     get_logger,
 )
+
+# Initialize logger early
+logger = get_logger("main")
+
+# Try to import unified search (integration component)
+try:
+    from app.api import unified_search
+    UNIFIED_SEARCH_AVAILABLE = True
+    logger.info("✅ Unified search integration loaded")
+except ImportError as e:
+    logger.warning(f"⚠️ Unified search not available: {e}")
+    unified_search = None
+    UNIFIED_SEARCH_AVAILABLE = False
 from app.core.startup_monitor import StartupMonitor
 from app.graphs.chat_graph import ChatGraph
 from app.graphs.search_graph import SearchGraph, execute_search
@@ -223,6 +240,40 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             "adaptive_router", init_adaptive_router
         )
         app_state["adaptive_router"] = adaptive_router
+
+        # Unified Search Graph (optional integration with ideal-octo-goggles)
+        if UNIFIED_SEARCH_AVAILABLE:
+            async def init_unified_search():
+                try:
+                    from app.graphs.unified_search_graph import UnifiedSearchGraph
+                    
+                    # Use environment variable for document search URL
+                    doc_search_url = os.getenv("DOCUMENT_SEARCH_URL", "http://localhost:8001")
+                    
+                    unified_graph = UnifiedSearchGraph(
+                        model_manager=app_state["model_manager"],
+                        cache_manager=app_state["cache_manager"],
+                        document_search_url=doc_search_url
+                    )
+                    
+                    # Test connection to document search system
+                    doc_healthy = await unified_graph.document_node.health_check()
+                    if doc_healthy:
+                        logger.info("✅ Document search system connected")
+                    else:
+                        logger.warning("⚠️ Document search system not available")
+                    
+                    return unified_graph
+                except Exception as e:
+                    logger.warning(f"⚠️ Failed to initialize unified search: {e}")
+                    return None
+
+            unified_search_graph = await monitor.initialize_component(
+                "unified_search_graph", init_unified_search
+            )
+            app_state["unified_search_graph"] = unified_search_graph
+        else:
+            logger.info("ℹ️ Unified search integration disabled")
 
         # Initialize API key status for provider health checks
         def init_api_key_status():
@@ -771,6 +822,29 @@ app.include_router(
     tags=["research"]
 )
 
+app.include_router(
+    unified_search.router,
+    prefix="/api/v1/unified",
+    tags=["Unified Search"],
+    dependencies=[]
+)
+
+app.include_router(
+    ui.router,
+    tags=["Web UI"]
+)
+
+app.include_router(
+    chat_unified.router,
+    tags=["Unified Chat API"]
+)
+
+app.include_router(
+    unified_search.router,
+    prefix="/api/v1/unified_search",
+    tags=["Unified Search"]
+)
+
 
 # Root endpoint
 @app.get("/")
@@ -983,7 +1057,7 @@ if settings.environment != "production":
 
 
 # Static files (if needed)
-# app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 
 def create_app() -> FastAPI:

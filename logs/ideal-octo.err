@@ -1,0 +1,59 @@
+ERROR:    Error loading ASGI app. Could not import module "app.main_basic".
+ERROR:    Error loading ASGI app. Could not import module "app.main_basic".
+ERROR:    Error loading ASGI app. Could not import module "app.main_basic".
+ERROR:    Error loading ASGI app. Could not import module "app.main_basic".
+INFO:main_basic:PORT environment variable: 8001
+INFO:main_basic:RAILWAY_ENVIRONMENT: NOT SET
+INFO:main_basic:All environment variables: {'PYTHON_SHA256': 'ae665bc678abd9ab6a6e1573d2481625a53719bc517e9a634ed2b9fefae3817f', 'PYTHONUNBUFFERED': '1', 'HOSTNAME': '8d0f6414bd18', 'PYTHON_VERSION': '3.10.18', 'SEARCH_PORT': '8001', 'PWD': '/app', 'PORT': '8001', 'HOME': '/root', 'LANG': 'C.UTF-8', 'GPG_KEY': 'A035C8C19219BA821ECEA86B64E628F8D684696D', 'PYTHONPATH': '/app/ubiquitous-octo-invention:/app/ideal-octo-goggles', 'ENVIRONMENT': 'development', 'SHLVL': '0', 'PYTHONDONTWRITEBYTECODE': '1', 'PATH': '/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin', 'DEBUG': 'true', 'SUPERVISOR_ENABLED': '1', 'SUPERVISOR_PROCESS_NAME': 'ideal-octo-goggles', 'SUPERVISOR_GROUP_NAME': 'ideal-octo-goggles'}
+INFO:     Started server process [9]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8001 (Press CTRL+C to quit)
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [9]
+INFO:main_basic:PORT environment variable: 8001
+INFO:main_basic:RAILWAY_ENVIRONMENT: NOT SET
+INFO:main_basic:All environment variables: {'PYTHON_SHA256': 'ae665bc678abd9ab6a6e1573d2481625a53719bc517e9a634ed2b9fefae3817f', 'PYTHONUNBUFFERED': '1', 'HOSTNAME': '8d0f6414bd18', 'PYTHON_VERSION': '3.10.18', 'SEARCH_PORT': '8001', 'PWD': '/app', 'PORT': '8001', 'HOME': '/root', 'LANG': 'C.UTF-8', 'GPG_KEY': 'A035C8C19219BA821ECEA86B64E628F8D684696D', 'PYTHONPATH': '/app/ubiquitous-octo-invention:/app/ideal-octo-goggles', 'ENVIRONMENT': 'development', 'SHLVL': '0', 'PYTHONDONTWRITEBYTECODE': '1', 'PATH': '/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin', 'DEBUG': 'true', 'SUPERVISOR_ENABLED': '1', 'SUPERVISOR_PROCESS_NAME': 'ideal-octo-goggles', 'SUPERVISOR_GROUP_NAME': 'ideal-octo-goggles'}
+INFO:     Started server process [9]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8001 (Press CTRL+C to quit)
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [9]
+INFO:main_basic:PORT environment variable: 8001
+INFO:main_basic:RAILWAY_ENVIRONMENT: NOT SET
+INFO:main_basic:All environment variables: {'PYTHON_SHA256': 'ae665bc678abd9ab6a6e1573d2481625a53719bc517e9a634ed2b9fefae3817f', 'PYTHONUNBUFFERED': '1', 'HOSTNAME': '2e4e39180086', 'PYTHON_VERSION': '3.10.18', 'SEARCH_PORT': '8001', 'PWD': '/app', 'PORT': '8001', 'HOME': '/root', 'LANG': 'C.UTF-8', 'GPG_KEY': 'A035C8C19219BA821ECEA86B64E628F8D684696D', 'PYTHONPATH': '/app/ubiquitous-octo-invention:/app/ideal-octo-goggles', 'ENVIRONMENT': 'development', 'SHLVL': '0', 'PYTHONDONTWRITEBYTECODE': '1', 'PATH': '/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin', 'DEBUG': 'true', 'SUPERVISOR_ENABLED': '1', 'SUPERVISOR_PROCESS_NAME': 'ideal-octo-goggles', 'SUPERVISOR_GROUP_NAME': 'ideal-octo-goggles'}
+INFO:     Started server process [9]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8001 (Press CTRL+C to quit)
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [9]
+INFO:main_basic:PORT environment variable: 8001
+INFO:main_basic:RAILWAY_ENVIRONMENT: NOT SET
+INFO:main_basic:All environment variables: {'PYTHON_SHA256': 'ae665bc678abd9ab6a6e1573d2481625a53719bc517e9a634ed2b9fefae3817f', 'PYTHONUNBUFFERED': '1', 'HOSTNAME': 'a334cfd1d024', 'PYTHON_VERSION': '3.10.18', 'SEARCH_PORT': '8001', 'PWD': '/app', 'PORT': '8001', 'HOME': '/root', 'LANG': 'C.UTF-8', 'GPG_KEY': 'A035C8C19219BA821ECEA86B64E628F8D684696D', 'PYTHONPATH': '/app/ubiquitous-octo-invention:/app/ideal-octo-goggles', 'ENVIRONMENT': 'development', 'SHLVL': '0', 'PYTHONDONTWRITEBYTECODE': '1', 'PATH': '/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin', 'DEBUG': 'true', 'SUPERVISOR_ENABLED': '1', 'SUPERVISOR_PROCESS_NAME': 'ideal-octo-goggles', 'SUPERVISOR_GROUP_NAME': 'ideal-octo-goggles'}
+INFO:     Started server process [9]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8001 (Press CTRL+C to quit)
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [9]
+INFO:main_basic:PORT environment variable: 8001
+INFO:main_basic:RAILWAY_ENVIRONMENT: NOT SET
+INFO:main_basic:All environment variables: {'PYTHON_SHA256': 'ae665bc678abd9ab6a6e1573d2481625a53719bc517e9a634ed2b9fefae3817f', 'PYTHONUNBUFFERED': '1', 'HOSTNAME': 'a334cfd1d024', 'PYTHON_VERSION': '3.10.18', 'SEARCH_PORT': '8001', 'PWD': '/app', 'PORT': '8001', 'HOME': '/root', 'LANG': 'C.UTF-8', 'GPG_KEY': 'A035C8C19219BA821ECEA86B64E628F8D684696D', 'PYTHONPATH': '/app/ubiquitous-octo-invention:/app/ideal-octo-goggles', 'ENVIRONMENT': 'development', 'SHLVL': '0', 'PYTHONDONTWRITEBYTECODE': '1', 'PATH': '/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin', 'DEBUG': 'true', 'SUPERVISOR_ENABLED': '1', 'SUPERVISOR_PROCESS_NAME': 'ideal-octo-goggles', 'SUPERVISOR_GROUP_NAME': 'ideal-octo-goggles'}
+INFO:     Started server process [9]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8001 (Press CTRL+C to quit)
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [9]
