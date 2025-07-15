@@ -78,7 +78,7 @@ class SmartCache:
             # Calculate approximate size
             try:
                 size_bytes = len(json.dumps(value, default=str).encode())
-            except (TypeError, ValueError, OverflowError):
+            except (TypeError, ValueError, OverflowError) as e:
                 size_bytes = 1000  # Estimate
 
             entry = CacheEntry(
@@ -105,7 +105,7 @@ class SmartCache:
     def clear_expired(self):
         """Clear expired entries"""
         with self._lock:
-            time.time()
+            current_time = time.time()
             expired_keys = [
                 key for key, entry in self.cache.items() if entry.is_expired()
             ]

@@ -44,18 +44,6 @@ fi
 echo "📁 Creating ALL required directories IMMEDIATELY..."
 mkdir -p /var/log/supervisor /root/.ollama/models /app/cache /var/run /tmp
 
-# Initialize Ollama directories and environment
-echo "🤖 Initializing Ollama environment..."
-export OLLAMA_MODELS="/root/.ollama/models"
-export OLLAMA_KEEP_ALIVE="24h"
-export OLLAMA_HOST="0.0.0.0:11434"
-export OLLAMA_ORIGINS="*"
-export CUDA_VISIBLE_DEVICES="0"
-
-# Ensure Ollama directories have correct permissions
-chown -R root:root /root/.ollama
-chmod -R 755 /root/.ollama
-
 # Force create the directory with explicit permissions
 chmod 755 /var/log/supervisor /var/run
 chown root:root /var/log/supervisor /var/run
@@ -133,27 +121,22 @@ echo "=================================="
 cat /etc/supervisor/conf.d/ai-search.conf | head -20
 echo "=================================="
 
-# Skip supervisor test - it actually starts services instead of just testing
-echo "✅ Supervisor configuration files verified, skipping test to avoid premature startup"
+# Test configuration with verbose output
+echo "🧪 Testing supervisor configuration..."
+if ! supervisord -t -c /etc/supervisor/supervisord.conf 2>&1; then
+    echo "❌ Supervisor configuration test failed!"
+    echo "📋 Configuration file contents:"
+    echo "=== /etc/supervisor/supervisord.conf ==="
+    cat /etc/supervisor/supervisord.conf
+    echo "=== /etc/supervisor/conf.d/ai-search.conf ==="
+    cat /etc/supervisor/conf.d/ai-search.conf
+    exit 1
+fi
 
-echo "🎯 Starting supervisor in background mode for RunPod..."
-echo "   This will start all services: Redis -> Ollama -> FastAPI -> Health Monitor"
+echo "✅ Supervisor configuration test passed"
 
-# Start supervisor in daemon mode (this will NOT block)
-/usr/bin/supervisord -c /etc/supervisor/supervisord.conf
+echo "🎯 Starting supervisor in foreground mode..."
+echo "   This will start all services: Redis -> Ollama -> FastAPI -> Model Init"
 
-# Wait for services to start
-sleep 10
-
-echo "✅ Supervisor started successfully!"
-echo "🌐 API available at: https://l4vja98so6wvh9-8000.proxy.runpod.net/"
-echo "📖 API docs at: https://l4vja98so6wvh9-8000.proxy.runpod.net/docs"
-echo "💻 Terminal is now accessible for manual commands"
-echo ""
-echo "🎉 Startup complete! Dropping to bash shell..."
-echo "ℹ️  Check logs with: tail -f /var/log/supervisor/*.log"
-echo "🔧 Download models with: ollama pull phi3:mini"
-echo ""
-
-# Drop to interactive bash shell
-exec /bin/bash
+# Start supervisor - this should work now!
+exec /usr/bin/supervisord -n -c /etc/supervisor/supervisord.conf

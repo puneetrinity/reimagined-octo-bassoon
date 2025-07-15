@@ -4,8 +4,10 @@ SearchGraph Implementation - Clean Web Search with Brave + ScrapingBee
 Handles intelligent search routing, content enhancement, and response synthesis
 """
 
+import asyncio
 import time
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 import structlog
@@ -244,8 +246,7 @@ class BraveSearchNode(BaseGraphNode):
 
             # Check cache first - use SHA256 to avoid hash collisions
             import hashlib
-
-            query_hash = hashlib.sha256(query.encode("utf-8")).hexdigest()[:16]
+            query_hash = hashlib.sha256(query.encode('utf-8')).hexdigest()[:16]
             cache_key = f"brave_search:{query_hash}:{max_results}"
             cached_results = await self.cache_manager.get(cache_key)
 
@@ -618,7 +619,7 @@ Response:"""
             "premium": "llama2:13b",
             "high": "mistral:7b",
             "balanced": "llama2:7b",
-            "minimal": "phi3:mini",
+            "minimal": "phi:mini",
         }
         return model_mapping.get(quality, "llama2:7b")
 
@@ -723,7 +724,7 @@ Since this doesn't require web search, give a conversational and informative res
 Response:"""
 
             model_result = await self.model_manager.generate(
-                model_name="phi3:mini",  # Fast model for direct responses
+                model_name="phi:mini",  # Fast model for direct responses
                 prompt=response_prompt,
                 max_tokens=300,
                 temperature=0.6,
@@ -745,7 +746,7 @@ Response:"""
                 confidence=confidence,
                 data={"response": response, "type": "model_generated"},
                 cost=cost,
-                model_used="phi3:mini" if model_result.success else None,
+                model_used="phi:mini" if model_result.success else None,
             )
 
         except Exception as e:
@@ -778,13 +779,6 @@ class SearchGraph(BaseGraph):
         self.cache_manager = cache_manager
         self._node_instances = {}
 
-    async def initialize(self):
-        """Initialize the search graph"""
-        # Build the graph if not already done
-        if not hasattr(self, 'nodes') or not self.nodes:
-            self.build()
-        logger.info("SearchGraph initialized", node_count=len(self.nodes))
-
     def define_nodes(self) -> Dict[str, BaseGraphNode]:
         """Define search graph nodes"""
         if not self._node_instances:
@@ -805,29 +799,29 @@ class SearchGraph(BaseGraph):
         return [
             # Start with routing decision
             ("start", "smart_router"),
-            # Conditional routing from smart_router
-            (
-                "smart_router",
-                self._check_routing_errors,
-                {
-                    "search": "brave_search",
-                    "direct": "direct_response",
-                    "error": "error_handler",
-                },
-            ),
             # Search path
+            ("smart_router", "brave_search"),
             ("brave_search", "content_enhancement"),
             ("content_enhancement", "response_synthesis"),
             ("response_synthesis", "end"),
             # Direct response path
+            ("smart_router", "direct_response"),
             ("direct_response", "end"),
-            # Search results conditional routing
+            # Error handling
+            (
+                "smart_router",
+                self._check_routing_errors,
+                {
+                    "error": "error_handler",
+                    "search": "brave_search",
+                    "direct": "direct_response",
+                },
+            ),
             (
                 "brave_search",
                 self._check_search_results,
                 {"no_results": "direct_response", "has_results": "content_enhancement"},
             ),
-            # Content enhancement conditional routing
             (
                 "content_enhancement",
                 self._check_enhancement_results,
@@ -836,17 +830,15 @@ class SearchGraph(BaseGraph):
                     "error": "response_synthesis",  # Continue even if enhancement fails
                 },
             ),
-            # Error handling
             ("error_handler", "end"),
+            # If more terminal nodes are added in the future, ensure they also route to 'end'
         ]
 
     def _check_routing_errors(self, state: GraphState) -> str:
         """Check routing decision and prevent infinite loops."""
         # Circuit breaker: if execution path is too long, force end
-        if hasattr(state, "execution_path") and len(state.execution_path) > 15:
-            logger.error(
-                f"[SearchGraph] Circuit breaker tripped: execution_path too long ({len(state.execution_path)}). Forcing end."
-            )
+        if hasattr(state, 'execution_path') and len(state.execution_path) > 15:
+            logger.error(f"[SearchGraph] Circuit breaker tripped: execution_path too long ({len(state.execution_path)}). Forcing end.")
             return "error"  # Will route to 'error_handler', which then routes to 'end'
         if state.errors:
             return "error"
@@ -882,8 +874,8 @@ class SearchGraph(BaseGraph):
         Orchestrates the complete search and analysis pipeline.
         """
         query = state.get("query", "")
-        state.get("context", {})
-        state.get("constraints", {})
+        user_context = state.get("context", {})
+        constraints = state.get("constraints", {})
         logger.info("Starting search workflow", query=query)
         try:
             # Step 1: Query Expansion for better search results
@@ -904,9 +896,9 @@ class SearchGraph(BaseGraph):
             content_analysis = await self._content_analysis_node.execute(
                 {
                     **state,
-                    "scraped_content": (
-                        scraped_content.data if scraped_content.success else {}
-                    ),
+                    "scraped_content": scraped_content.data
+                    if scraped_content.success
+                    else {},
                     "search_results": search_results.data,
                 }
             )
@@ -914,13 +906,13 @@ class SearchGraph(BaseGraph):
             final_response = await self._response_synthesis_node.execute(
                 {
                     **state,
-                    "analysis": (
-                        content_analysis.data if content_analysis.success else {}
-                    ),
+                    "analysis": content_analysis.data
+                    if content_analysis.success
+                    else {},
                     "search_results": search_results.data,
-                    "scraped_content": (
-                        scraped_content.data if scraped_content.success else {}
-                    ),
+                    "scraped_content": scraped_content.data
+                    if scraped_content.success
+                    else {},
                 }
             )
             if final_response.success:
@@ -933,11 +925,11 @@ class SearchGraph(BaseGraph):
                             "expanded_queries", []
                         ),
                         "sources_found": len(search_results.data.get("results", [])),
-                        "content_analyzed": (
-                            len(scraped_content.data.get("scraped_urls", []))
-                            if scraped_content.success
-                            else 0
-                        ),
+                        "content_analyzed": len(
+                            scraped_content.data.get("scraped_urls", [])
+                        )
+                        if scraped_content.success
+                        else 0,
                     },
                 }
             else:
@@ -1014,9 +1006,6 @@ async def execute_search(
 
     # Create and execute search graph
     search_graph = SearchGraph(model_manager, cache_manager)
-    
-    # Build the graph
-    search_graph.build()
 
     try:
         # Create initial state
@@ -1025,12 +1014,11 @@ async def execute_search(
             cost_budget_remaining=budget,
             quality_requirement=quality,
             max_execution_time=30.0,
-            max_results=max_results,  # Add max_results to state
         )
 
         # Execute graph
         start_time = time.time()
-        result = await search_graph.execute(state)  # Remove max_results keyword argument
+        result = await search_graph.execute(state, max_results=max_results)
         execution_time = time.time() - start_time
 
         return {
@@ -1040,53 +1028,16 @@ async def execute_search(
             "metadata": {
                 "execution_time": execution_time,
                 "total_cost": state.calculate_total_cost(),
-                "search_results_count": (
-                    len(state.search_results) if state.search_results else 0
-                ),
+                "search_results_count": len(state.search_results)
+                if state.search_results
+                else 0,
                 "quality_used": quality,
                 "budget_used": budget - state.cost_budget_remaining,
                 **state.response_metadata,
             },
-            "success": len(state.errors) == 0,  # Success if no errors
+            "success": result.success if result else False,
         }
 
     finally:
         # Cleanup resources
         await search_graph.cleanup()
-
-
-async def create_search_graph(model_manager: ModelManager, cache_manager: CacheManager) -> SearchGraph:
-    """
-    Factory function to create and initialize a SearchGraph instance.
-    
-    Args:
-        model_manager: The ModelManager instance for LLM operations
-        cache_manager: Cache manager for caching search results and responses
-        
-    Returns:
-        Initialized SearchGraph instance
-    """
-    logger.info("Creating SearchGraph instance")
-    
-    # Create the graph instance
-    search_graph = SearchGraph(model_manager, cache_manager)
-    
-    # Build the graph (this is already done in the constructor via parent class)
-    logger.info("SearchGraph created successfully", 
-                graph_type=search_graph.graph_type.value,
-                node_count=len(search_graph.nodes))
-    
-    return search_graph
-
-
-# Export main classes
-__all__ = [
-    "SearchGraph",
-    "create_search_graph",
-    "SmartSearchRouterNode",
-    "BraveSearchNode", 
-    "ContentEnhancementNode",
-    "ResponseSynthesisNode",
-    "DirectResponseNode",
-    "EnhancedSearchResult",
-]
