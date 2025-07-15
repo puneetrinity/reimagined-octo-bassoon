@@ -283,12 +283,10 @@ class UserStatsResponse(BaseResponse):
     stats: UserStats = Field(..., description="User statistics")
 
 
-class ResearchResponse(BaseModel):
+class ResearchResponse(BaseResponse):
     """Research response schema."""
 
-    status: str = Field(..., description="Response status")
-    data: Dict[str, Any] = Field(..., description="Response data")
-    metadata: ResponseMetadata = Field(..., description="Response metadata")
+    data: Dict[str, Any] = Field(..., description="Research response data")
 
 
 # OpenAI-compatible response models for streaming

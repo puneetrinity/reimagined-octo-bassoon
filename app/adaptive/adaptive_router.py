@@ -66,7 +66,7 @@ class AdaptiveIntelligentRouter:
 
         # Initialize graphs for shadow testing
         self.graphs = {
-            GraphType.CHAT: ChatGraph(model_manager),
+            GraphType.CHAT: ChatGraph(model_manager, cache_manager),
             GraphType.SEARCH: SearchGraph(model_manager, cache_manager),
         }
 
@@ -78,14 +78,26 @@ class AdaptiveIntelligentRouter:
 
     async def initialize(self):
         """Initialize the adaptive router system"""
-        # Initialize original router
-        await self.intelligent_router.initialize()
+        try:
+            # Initialize original router
+            if hasattr(self.intelligent_router, 'initialize'):
+                await self.intelligent_router.initialize()
 
-        # Initialize graphs
-        for graph in self.graphs.values():
-            await graph.initialize()
+            # Initialize graphs
+            for graph_type, graph in self.graphs.items():
+                if hasattr(graph, 'initialize'):
+                    await graph.initialize()
+                    logger.debug(f"Initialized {graph_type.value} graph")
 
-        logger.info("adaptive_router_system_initialized")
+            # Initialize adaptive components if enabled
+            if self.enable_adaptive and self.shadow_router:
+                if hasattr(self.shadow_router, 'initialize'):
+                    await self.shadow_router.initialize()
+
+            logger.info("adaptive_router_system_initialized")
+        except Exception as e:
+            logger.error(f"adaptive_router_initialization_failed: {e}")
+            raise
 
     async def route_query(self, query: str, state: GraphState) -> Any:
         """

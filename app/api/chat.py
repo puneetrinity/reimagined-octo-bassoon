@@ -170,7 +170,46 @@ async def chat_complete(
         session_id = (
             chat_request.session_id or f"chat_{current_user.user_id}_{int(time.time())}"
         )
-        conversation_history = chat_request.user_context.get("conversation_history", [])
+        # Retrieve conversation history from cache first
+        app_state = getattr(request.app.state, "app_state", {})
+        cache_manager_app = app_state.get("cache_manager")
+
+        conversation_history = []
+        if cache_manager_app and session_id:
+            try:
+                # Try to get existing conversation history with enhanced cache manager
+                # Use the appropriate cache manager (app or global enhanced)
+                if hasattr(cache_manager, 'get_from_l1_or_l2'):
+                    cached_history = await cache_manager.get_from_l1_or_l2(
+                        f"conversation_history:{session_id}"
+                    )
+                else:
+                    # Fallback to basic get method
+                    cached_history = await cache_manager.get(
+                        f"conversation_history:{session_id}"
+                    )
+                if cached_history:
+                    conversation_history = (
+                        json.loads(cached_history)
+                        if isinstance(cached_history, str)
+                        else cached_history
+                    )
+                    logger.info(
+                        f"Retrieved conversation history with {len(conversation_history)} messages for session {session_id}"
+                    )
+                else:
+                    logger.info(
+                        f"No existing conversation history found for session {session_id}"
+                    )
+            except Exception as e:
+                logger.warning(f"Failed to retrieve conversation history: {e}")
+                conversation_history = []
+
+        # Fallback to user_context if cache fails
+        if not conversation_history:
+            conversation_history = chat_request.user_context.get(
+                "conversation_history", []
+            )
         graph_state = GraphState(
             query_id=query_id,
             correlation_id=correlation_id,
@@ -502,12 +541,37 @@ async def chat_stream(
     *,
     req: Request,
     streaming_request: ChatStreamRequest,
-    current_user: User = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user),
 ):
     correlation_id = str(uuid.uuid4())
     set_correlation_id(correlation_id)
     query_id = str(uuid.uuid4())
-    await initialize_chat_dependencies()
+
+    # Get components from app state
+    app_state = getattr(req.app.state, "app_state", {})
+    chat_graph = app_state.get("chat_graph")
+    model_manager = app_state.get("model_manager")
+    cache_manager_app = app_state.get("cache_manager")
+
+    # Initialize fallback components if not found in app state
+    if model_manager is None:
+        from app.dependencies import get_model_manager
+
+        model_manager = get_model_manager()
+
+    if cache_manager_app is None:
+        from app.dependencies import get_cache_manager
+
+        cache_manager_app = get_cache_manager()
+
+    # Use enhanced cache manager for better performance
+    if cache_manager_app:
+        cache_manager = cache_manager_app
+    else:
+        cache_manager = cache_manager  # Fallback to global enhanced cache manager
+
+    if chat_graph is None:
+        chat_graph = ChatGraph(model_manager, cache_manager_app)
 
     async def generate_safe_stream():
         global chat_graph, model_manager, cache_manager

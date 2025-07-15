@@ -205,6 +205,57 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             "search_system", init_search_system
         )
         app_state["search_system"] = search_system
+
+        # Adaptive Router (depends on model_manager and cache_manager)
+        async def init_adaptive_router():
+            from app.adaptive.adaptive_router import AdaptiveIntelligentRouter
+
+            router = AdaptiveIntelligentRouter(
+                model_manager=app_state["model_manager"],
+                cache_manager=app_state["cache_manager"],
+                enable_adaptive=True,
+                shadow_rate=0.3,
+            )
+            await router.initialize()
+            return router
+
+        adaptive_router = await monitor.initialize_component(
+            "adaptive_router", init_adaptive_router
+        )
+        app_state["adaptive_router"] = adaptive_router
+
+        # Initialize API key status for provider health checks
+        def init_api_key_status():
+            """Check for API keys and set their status in app_state."""
+            api_key_status = {}
+            
+            # Check Brave Search API key
+            brave_key = os.getenv("BRAVE_API_KEY")
+            if brave_key and brave_key.strip():
+                api_key_status["brave_search"] = True
+                logger.info("✅ Brave Search API key configured")
+            else:
+                api_key_status["brave_search"] = False
+                logger.info("⚠️ Brave Search API key not configured")
+            
+            # Check ScrapingBee API key
+            scrapingbee_key = os.getenv("SCRAPINGBEE_API_KEY")
+            if scrapingbee_key and scrapingbee_key.strip():
+                api_key_status["scrapingbee"] = True
+                logger.info("✅ ScrapingBee API key configured")
+            else:
+                api_key_status["scrapingbee"] = False
+                logger.info("⚠️ ScrapingBee API key not configured")
+            
+            return api_key_status
+
+        api_key_status = await monitor.initialize_component(
+            "api_key_status", init_api_key_status
+        )
+        app_state["api_key_status"] = api_key_status
+
+        # Add startup time for uptime calculation
+        app_state["startup_time"] = time.time()
         # Add more components as your system grows
         # Generate and store startup report
         startup_report = monitor.get_startup_report()
