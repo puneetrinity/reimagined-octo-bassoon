@@ -93,7 +93,7 @@ async def chat_health():
 @log_performance("chat_complete")
 async def chat_complete(
     chat_request: ChatRequest = Body(..., embed=False),
-    current_user: dict = Depends(get_current_user),
+    current_user: Dict[str, Any] = Depends(get_current_user),
     background_tasks: BackgroundTasks = None,
     request: Request = None,
 ):
@@ -151,7 +151,7 @@ async def chat_complete(
     logger.info(
         "Chat completion request started",
         query_id=query_id,
-        user_id=current_user.user_id,
+        user_id=current_user["user_id"],
         message_length=len(chat_request.message),
         session_id=chat_request.session_id,
         prompt=chat_request.message,
@@ -169,7 +169,7 @@ async def chat_complete(
                 correlation_id=correlation_id,
             )
         session_id = (
-            chat_request.session_id or f"chat_{current_user.user_id}_{int(time.time())}"
+            chat_request.session_id or f"chat_{current_user['user_id']}_{int(time.time())}"
         )
         # Retrieve conversation history from cache first
         app_state = getattr(request.app.state, "app_state", {})
@@ -214,7 +214,7 @@ async def chat_complete(
         graph_state = GraphState(
             query_id=query_id,
             correlation_id=correlation_id,
-            user_id=current_user.user_id,
+            user_id=current_user["user_id"],
             session_id=session_id,
             original_query=chat_request.message,
             conversation_history=conversation_history,
@@ -541,7 +541,7 @@ async def chat_stream(
     *,
     req: Request,
     streaming_request: ChatStreamRequest,
-    current_user: dict = Depends(get_current_user),
+    current_user: Dict[str, Any] = Depends(get_current_user),
 ):
     correlation_id = str(uuid.uuid4())
     set_correlation_id(correlation_id)
@@ -647,7 +647,7 @@ async def chat_stream(
                 return
             session_id = (
                 streaming_request.session_id
-                or f"stream_{current_user.user_id}_{int(time.time())}"
+                or f"stream_{current_user['user_id']}_{int(time.time())}"
             )
             conversation_history = []
             for msg in streaming_request.messages[:-1]:
@@ -663,7 +663,7 @@ async def chat_stream(
             graph_state = GraphState(
                 query_id=query_id,
                 correlation_id=correlation_id,
-                user_id=current_user.user_id,
+                user_id=current_user["user_id"],
                 session_id=session_id,
                 original_query=user_message,
                 conversation_history=conversation_history,

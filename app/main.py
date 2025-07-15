@@ -23,6 +23,8 @@ from app.api import unified_search
 from app.api import ui
 from app.api import chat_unified
 from app.api import native_search
+from app.api import models_routes
+from app.api import analytics_routes
 from app.api.security import SecurityMiddleware
 from app.cache.redis_client import CacheManager
 from app.core.config import get_settings
@@ -872,6 +874,20 @@ app.include_router(
 app.include_router(
     native_search.router,
     tags=["Native Search"]
+)
+
+# Include models management router
+app.include_router(
+    models_routes.router,
+    prefix="/api/v1/models",
+    tags=["Model Management"]
+)
+
+# Include analytics router
+app.include_router(
+    analytics_routes.router,
+    prefix="/api/v1/analytics",
+    tags=["Analytics"]
 )
 
 

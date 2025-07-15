@@ -1,11 +1,11 @@
 import uuid
-from typing import Dict
+from typing import Dict, Any
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.agents.multi_agent_orchestrator import MultiAgentOrchestrator
-from app.api.security import User, get_current_user
+from app.api.security import get_current_user, require_permission
 from app.cache.redis_client import CacheManager
 from app.core.timeout_utils import timeout_manager
 from app.dependencies import get_cache_manager, get_model_manager
@@ -18,10 +18,11 @@ logger = structlog.get_logger("research_api")
 
 
 @router.post("/deep-dive")
+@require_permission("research")  # Add permission check
 @timeout_manager.with_operation_timeout("research")
 async def research_deep_dive(
     request: ResearchRequest,
-    current_user: User = Depends(get_current_user),
+    current_user: Dict[str, Any] = Depends(get_current_user),  # Changed from User to Dict[str, Any]
     model_manager: ModelManager = Depends(get_model_manager),
     cache_manager: CacheManager = Depends(get_cache_manager),
 ) -> ResearchResponse:
@@ -30,21 +31,55 @@ async def research_deep_dive(
     Provides in-depth analysis with fact verification and citations.
     """
     try:
-        # Initialize multi-agent orchestrator
-        orchestrator = MultiAgentOrchestrator(model_manager, cache_manager)
-        # Build constraints dict from request fields
-        constraints = {
-            "cost_budget": request.cost_budget,
-            "time_budget": request.time_budget,
-            "depth_level": request.depth_level,
-            "sources": request.sources,
-        }
-        # Execute research workflow
-        research_results = await orchestrator.execute_research_workflow(
-            research_question=request.research_question,
-            methodology=request.methodology,
-            constraints=constraints,
-        )
+        # Add timeout and fallback handling
+        import asyncio
+        
+        async def execute_research_with_timeout():
+            # Initialize multi-agent orchestrator
+            orchestrator = MultiAgentOrchestrator(model_manager, cache_manager)
+            # Build constraints dict from request fields
+            constraints = {
+                "cost_budget": request.cost_budget,
+                "time_budget": min(request.time_budget, 60),  # Cap at 60 seconds
+                "depth_level": request.depth_level,
+                "sources": request.sources,
+            }
+            # Execute research workflow
+            return await orchestrator.execute_research_workflow(
+                research_question=request.research_question,
+                methodology=request.methodology,
+                constraints=constraints,
+            )
+        
+        # Execute with timeout
+        try:
+            research_results = await asyncio.wait_for(
+                execute_research_with_timeout(),
+                timeout=60.0  # 60 second timeout
+            )
+        except asyncio.TimeoutError:
+            # Return a partial result on timeout
+            logger.warning(f"Research timed out for question: {request.research_question}")
+            return ResearchResponse(
+                status="partial",
+                data={
+                    "research_question": request.research_question,
+                    "summary": "Research operation timed out. This was a complex query that required more time to complete. Please try with a more specific question or reduced scope.",
+                    "findings": [],
+                    "sources": [],
+                    "confidence_score": 0.0,
+                    "error": "Operation timed out after 60 seconds"
+                },
+                metadata=ResponseMetadata(
+                    query_id=str(uuid.uuid4()),
+                    correlation_id=str(uuid.uuid4()),
+                    execution_time=60.0,
+                    cost=0.0,
+                    models_used=["timeout"],
+                    confidence=0.0,
+                    cached=False,
+                ),
+            )
         if research_results["success"]:
             return ResearchResponse(
                 status="success",

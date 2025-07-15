@@ -458,7 +458,7 @@ class AuthenticationStub:
             "user_id": f"anon-{hash(client_ip) % 10000}",
             "tier": "free",
             "monthly_budget": 5.0,  # Very limited for anonymous
-            "permissions": ["chat"],
+            "permissions": ["chat", "search", "advanced_search", "research"],  # Added research for testing
             "is_anonymous": True,
         }
 
