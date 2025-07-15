@@ -3,41 +3,41 @@
 Production-ready main application with comprehensive initialization and monitoring.
 Integrates all components for the complete AI search system with standardized providers.
 """
-import asyncio
-import json
-import os
 import sys
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any, AsyncGenerator, Dict
+import json
+import os
+import asyncio
 
 import uvicorn
-from fastapi import FastAPI, Request, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.api import chat, research, search
-from app.api import adaptive_routes as adaptive
-from app.api import analytics_routes as analytics
-from app.api import evaluation_routes as evaluation
-from app.api import models_routes as models
-from app.api import monitoring_routes as monitoring
 from app.api.security import SecurityMiddleware
 from app.cache.redis_client import CacheManager
 from app.core.config import get_settings
-from app.core.logging import LoggingMiddleware, get_correlation_id, get_logger
-from app.core.startup_monitor import StartupMonitor
-from app.dependencies import (
-    set_initialized_cache_manager,
-    set_initialized_model_manager,
+from app.core.logging import (
+    LoggingMiddleware,
+    get_correlation_id,
+    get_logger,
 )
+from app.core.startup_monitor import StartupMonitor
 from app.graphs.chat_graph import ChatGraph
 from app.graphs.search_graph import SearchGraph, execute_search
 from app.models.manager import ModelManager
 from app.models.ollama_client import ModelStatus
 from app.performance.optimization import OptimizedSearchSystem
 from app.schemas.responses import HealthStatus, create_error_response
+from app.dependencies import (
+    get_model_manager,
+    set_initialized_model_manager,
+    set_initialized_cache_manager
+)
 
 # Add project root to Python path
 project_root = Path(__file__).parent.parent
@@ -98,12 +98,7 @@ async def shutdown_resources(app_state: dict):
         except Exception as e:
             logger.warning(f"⚠️ CacheManager shutdown failed: {e}")
     # Shutdown other components
-    for component_name in [
-        "search_system",
-        "chat_graph",
-        "search_graph",
-        "adaptive_router",
-    ]:
+    for component_name in ["search_system", "chat_graph", "search_graph"]:
         component = app_state.get(component_name)
         if component and hasattr(component, "shutdown"):
             try:
@@ -114,23 +109,19 @@ async def shutdown_resources(app_state: dict):
     logger.info("🎯 Resource shutdown completed")
 
 
-async def wait_for_model_ready(
-    model_manager, model_name: str, timeout: float = 120.0, poll_interval: float = 2.0
-):
+async def wait_for_model_ready(model_manager, model_name: str, timeout: float = 120.0, poll_interval: float = 2.0):
     """Wait until the specified model is READY in Ollama, or timeout."""
     logger = get_logger("main")
     start = time.time()
     while time.time() - start < timeout:
         try:
             # Force refresh model list
-            await model_manager._discover_available_models()
+            await model_manager._discover_models()
             info = model_manager.models.get(model_name)
-            if info and getattr(info, "status", None) == ModelStatus.READY:
+            if info and getattr(info, 'status', None) == ModelStatus.READY:
                 logger.info(f"Model '{model_name}' is READY.")
                 return True
-            logger.info(
-                f"Waiting for model '{model_name}' to be READY. Current status: {getattr(info, 'status', None)}"
-            )
+            logger.info(f"Waiting for model '{model_name}' to be READY. Current status: {getattr(info, 'status', None)}")
         except Exception as e:
             logger.warning(f"Error while checking model readiness: {e}")
         await asyncio.sleep(poll_interval)
@@ -148,10 +139,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         # Model Manager (singleton)
 
         async def init_model_manager():
-            # Use standardized Ollama host configuration
-            ollama_host = settings.ollama_host
-            logger.info(f"🤖 Initializing ModelManager with Ollama: {ollama_host}")
-            model_manager = ModelManager(ollama_host=ollama_host)
+            model_manager = get_model_manager()
             await model_manager.initialize()
             # Wait for a model to be ready before continuing
             return model_manager
@@ -180,14 +168,20 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         # Chat Graph (depends on model_manager and cache_manager)
 
         def init_chat_graph():
-            return ChatGraph(app_state["model_manager"], app_state["cache_manager"])
+            return ChatGraph(
+                app_state["model_manager"],
+                app_state["cache_manager"]
+            )
 
         chat_graph = await monitor.initialize_component("chat_graph", init_chat_graph)
         app_state["chat_graph"] = chat_graph
         # Search Graph (depends on model_manager and cache_manager)
 
         def init_search_graph():
-            return SearchGraph(app_state["model_manager"], app_state["cache_manager"])
+            return SearchGraph(
+                app_state["model_manager"],
+                app_state["cache_manager"]
+            )
 
         search_graph = await monitor.initialize_component(
             "search_graph", init_search_graph
@@ -211,56 +205,6 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             "search_system", init_search_system
         )
         app_state["search_system"] = search_system
-
-        # Adaptive Router (depends on model_manager and cache_manager)
-        def init_adaptive_router():
-            from app.adaptive.adaptive_router import AdaptiveIntelligentRouter
-
-            return AdaptiveIntelligentRouter(
-                model_manager=app_state["model_manager"],
-                cache_manager=app_state["cache_manager"],
-                enable_adaptive=True,
-                shadow_rate=0.3,
-            )
-
-        adaptive_router = await monitor.initialize_component(
-            "adaptive_router", init_adaptive_router
-        )
-        app_state["adaptive_router"] = adaptive_router
-
-        # Initialize API key status for provider health checks
-        def init_api_key_status():
-            """Check for API keys and set their status in app_state."""
-            api_key_status = {}
-            
-            # Check Brave Search API key
-            brave_key = os.getenv("BRAVE_API_KEY")
-            if brave_key and brave_key.strip():
-                api_key_status["brave_search"] = True
-                logger.info("✅ Brave Search API key configured")
-            else:
-                api_key_status["brave_search"] = False
-                logger.info("⚠️ Brave Search API key not configured")
-            
-            # Check ScrapingBee API key
-            scrapingbee_key = os.getenv("SCRAPINGBEE_API_KEY")
-            if scrapingbee_key and scrapingbee_key.strip():
-                api_key_status["scrapingbee"] = True
-                logger.info("✅ ScrapingBee API key configured")
-            else:
-                api_key_status["scrapingbee"] = False
-                logger.info("⚠️ ScrapingBee API key not configured")
-            
-            return api_key_status
-
-        api_key_status = await monitor.initialize_component(
-            "api_key_status", init_api_key_status
-        )
-        app_state["api_key_status"] = api_key_status
-
-        # Add startup time for uptime calculation
-        app_state["startup_time"] = time.time()
-
         # Add more components as your system grows
         # Generate and store startup report
         startup_report = monitor.get_startup_report()
@@ -307,8 +251,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Add security middleware (rate limiting disabled for deployment)
-app.add_middleware(SecurityMiddleware, enable_rate_limiting=False)
+# Add security middleware
+app.add_middleware(SecurityMiddleware, enable_rate_limiting=True)
 
 # Add logging middleware
 app.add_middleware(LoggingMiddleware)
@@ -318,10 +262,6 @@ app.add_middleware(LoggingMiddleware)
 async def app_state_middleware(request: Request, call_next):
     """Ensure app.state has access to components."""
     if hasattr(request.app, "state"):
-        # Get the app_state that was set during lifespan startup
-        app_state = getattr(request.app.state, "app_state", {})
-        # These are already accessible via request.app.state.app_state,
-        # but we can also set direct references for convenience
         request.app.state.search_system = app_state.get("search_system")
         request.app.state.model_manager = app_state.get("model_manager")
         request.app.state.cache_manager = app_state.get("cache_manager")
@@ -376,9 +316,9 @@ async def health_check():
     try:
         components = {}
         overall_healthy = True
-
+        
         # Get the actual app state where components are stored
-        actual_app_state = getattr(app.state, "app_state", {})
+        actual_app_state = getattr(app.state, 'app_state', {})
 
         # Check model manager
         if "model_manager" in actual_app_state:
@@ -460,7 +400,7 @@ async def health_check():
             overall_healthy = False
 
         # Check provider API keys
-        api_key_status = actual_app_state.get("api_key_status", {})
+        api_key_status = app_state.get("api_key_status", {})
         if api_key_status.get("brave_search", False):
             components["brave_search"] = "configured"
         else:
@@ -473,8 +413,8 @@ async def health_check():
 
         # Calculate uptime
         uptime = None
-        if "startup_time" in actual_app_state:
-            uptime = time.time() - actual_app_state["startup_time"]
+        if "startup_time" in app_state:
+            uptime = time.time() - app_state["startup_time"]
 
         return HealthStatus(
             status="healthy" if overall_healthy else "degraded",
@@ -495,11 +435,8 @@ async def readiness_check():
     """Kubernetes readiness probe endpoint."""
     required_components = ["model_manager", "chat_graph", "search_graph"]
 
-    # Get actual app state where components are stored
-    actual_app_state = getattr(app.state, "app_state", {})
-
     for component in required_components:
-        if component not in actual_app_state:
+        if component not in app_state:
             raise HTTPException(
                 status_code=503, detail=f"Component {component} not ready"
             )
@@ -521,26 +458,23 @@ async def system_status():
         redis_status = "disconnected"
         ollama_status = "disconnected"
 
-        # Get actual app state where components are stored
-        actual_app_state = getattr(app.state, "app_state", {})
-
-        if "cache_manager" in actual_app_state and actual_app_state["cache_manager"]:
+        if "cache_manager" in app_state and app_state["cache_manager"]:
             redis_status = "connected"
 
-        if "model_manager" in actual_app_state:
+        if "model_manager" in app_state:
             try:
-                _stats = actual_app_state["model_manager"].get_model_stats()
+                _stats = app_state["model_manager"].get_model_stats()
                 ollama_status = "connected"
             except Exception:
                 ollama_status = "error"
 
         # Provider status
-        api_key_status = actual_app_state.get("api_key_status", {})
+        api_key_status = app_state.get("api_key_status", {})
 
         # Calculate uptime
         uptime = None
-        if "startup_time" in actual_app_state:
-            uptime = time.time() - actual_app_state["startup_time"]
+        if "startup_time" in app_state:
+            uptime = time.time() - app_state["startup_time"]
 
         return {
             "status": "operational",
@@ -548,28 +482,20 @@ async def system_status():
                 "redis": redis_status,
                 "ollama": ollama_status,
                 "api": "healthy",
-                "search_graph": (
-                    "initialized"
-                    if "search_graph" in actual_app_state
-                    else "not_initialized"
-                ),
-                "chat_graph": (
-                    "initialized"
-                    if "chat_graph" in actual_app_state
-                    else "not_initialized"
-                ),
+                "search_graph": "initialized"
+                if "search_graph" in app_state
+                else "not_initialized",
+                "chat_graph": "initialized"
+                if "chat_graph" in app_state
+                else "not_initialized",
             },
             "providers": {
-                "brave_search": (
-                    "configured"
-                    if api_key_status.get("brave_search", False)
-                    else "not_configured"
-                ),
-                "scrapingbee": (
-                    "configured"
-                    if api_key_status.get("scrapingbee", False)
-                    else "not_configured"
-                ),
+                "brave_search": "configured"
+                if api_key_status.get("brave_search", False)
+                else "not_configured",
+                "scrapingbee": "configured"
+                if api_key_status.get("scrapingbee", False)
+                else "not_configured",
             },
             "version": "1.0.0",
             "uptime": uptime,
@@ -595,12 +521,20 @@ def safe_serialize(obj, max_depth=3, current_depth=0):
     if isinstance(obj, (Mock, AsyncMock)):
         return {"type": "mock_object", "class_name": obj.__class__.__name__}
     if isinstance(obj, list):
-        return [safe_serialize(item, max_depth, current_depth + 1) for item in obj[:10]]
+        return [safe_serialize(
+            item,
+            max_depth,
+            current_depth + 1
+        ) for item in obj[:10]]
     if isinstance(obj, dict):
         result = {}
         for key, value in list(obj.items())[:20]:
             try:
-                result[str(key)] = safe_serialize(value, max_depth, current_depth + 1)
+                result[str(key)] = safe_serialize(
+                    value,
+                    max_depth,
+                    current_depth + 1
+                )
             except Exception:
                 result[str(key)] = "serialization_error"
         return result
@@ -636,14 +570,11 @@ async def get_metrics():
             "correlation_id": correlation_id,
             "version": "1.0.0",
         }
-        # Get actual app state
-        actual_app_state = getattr(app.state, "app_state", {})
-
-        startup_time = actual_app_state.get("startup_time")
+        startup_time = app_state.get("startup_time")
         if startup_time and isinstance(startup_time, (int, float)):
             metrics["uptime_seconds"] = time.time() - startup_time
         components = {}
-        for component_name, component in actual_app_state.items():
+        for component_name, component in app_state.items():
             if component_name == "startup_time":
                 continue
             try:
@@ -654,7 +585,7 @@ async def get_metrics():
                     "error": str(e),
                 }
         metrics["components"] = components
-        api_status = actual_app_state.get("api_key_status", {})
+        api_status = app_state.get("api_key_status", {})
         if isinstance(api_status, dict):
             metrics["api_keys"] = {
                 k: v
@@ -717,9 +648,9 @@ async def global_exception_handler(request: Request, exc: Exception):
         message="Internal server error",
         error_code="INTERNAL_SERVER_ERROR",
         correlation_id=correlation_id,
-        technical_details=(
-            error_detail if settings.environment != "production" else None
-        ),
+        technical_details=error_detail
+        if settings.environment != "production"
+        else None,
     )
 
     return JSONResponse(status_code=500, content=error_response.model_dump())
@@ -768,9 +699,7 @@ async def http_exception_handler(request: Request, exc: HTTPException):
             correlation_id=correlation_id,
         )
 
-        return JSONResponse(
-            status_code=exc.status_code, content=error_response.model_dump()
-        )
+        return JSONResponse(status_code=exc.status_code, content=error_response.model_dump())
 
 
 # Include API routers
@@ -778,30 +707,25 @@ app.include_router(
     search.router, prefix="/api/v1/search", tags=["Search"], dependencies=[]
 )
 
-app.include_router(chat.router, prefix="/api/v1/chat", tags=["Chat"], dependencies=[])
-
-app.include_router(research.router, prefix="/api/v1/research", tags=["research"])
-
-# Production API routers
 app.include_router(
-    adaptive.router, prefix="/api/v1/adaptive", tags=["Adaptive Routing"]
+    chat.router,
+    prefix="/api/v1/chat",
+    tags=["Chat"],
+    dependencies=[]
 )
 
-app.include_router(monitoring.router, prefix="/api/v1/monitoring", tags=["Monitoring"])
-
-app.include_router(analytics.router, prefix="/api/v1/analytics", tags=["Analytics"])
-
-app.include_router(evaluation.router, prefix="/api/v1/evaluation", tags=["Evaluation"])
-
-app.include_router(models.router, prefix="/api/v1/models", tags=["Models"])
+app.include_router(
+    research.router,
+    prefix="/api/v1/research",
+    tags=["research"]
+)
 
 
 # Root endpoint
 @app.get("/")
 async def root():
     """Root endpoint with system information."""
-    actual_app_state = getattr(app.state, "app_state", {})
-    api_key_status = actual_app_state.get("api_key_status", {})
+    api_key_status = app_state.get("api_key_status", {})
 
     return {
         "name": "AI Search System",
@@ -814,8 +738,6 @@ async def root():
         "api_endpoints": {
             "search_basic": "/api/v1/search/basic",
             "search_advanced": "/api/v1/search/advanced",
-            "model_download": "/api/v1/models/download",
-            "model_list": "/api/v1/models/list",
             "health": "/health",
             "metrics": "/metrics",
             "system_status": "/system/status",
@@ -831,16 +753,12 @@ async def root():
             "Performance monitoring",
         ],
         "providers": {
-            "brave_search": (
-                "configured"
-                if api_key_status.get("brave_search", False)
-                else "not_configured"
-            ),
-            "scrapingbee": (
-                "configured"
-                if api_key_status.get("scrapingbee", False)
-                else "not_configured"
-            ),
+            "brave_search": "configured"
+            if api_key_status.get("brave_search", False)
+            else "not_configured",
+            "scrapingbee": "configured"
+            if api_key_status.get("scrapingbee", False)
+            else "not_configured",
             "local_models": "ollama",
         },
     }
@@ -858,11 +776,9 @@ if settings.environment != "production":
             if key == "model_manager":
                 debug_state[key] = {
                     "type": "ModelManager",
-                    "stats": (
-                        value.get_model_stats()
-                        if hasattr(value, "get_model_stats")
-                        else None
-                    ),
+                    "stats": value.get_model_stats()
+                    if hasattr(value, "get_model_stats")
+                    else None,
                 }
             elif key == "cache_manager":
                 debug_state[key] = {
@@ -890,11 +806,9 @@ if settings.environment != "production":
                 "debug": settings.debug,
                 "ollama_host": settings.ollama_host,
                 # Hide credentials
-                "redis_url": (
-                    settings.redis_url.split("@")[-1]
-                    if "@" in settings.redis_url
-                    else settings.redis_url
-                ),
+                "redis_url": settings.redis_url.split("@")[-1]
+                if "@" in settings.redis_url
+                else settings.redis_url,
                 "log_level": settings.log_level,
             },
         }
@@ -903,8 +817,7 @@ if settings.environment != "production":
     async def debug_test_chat(message: str = "Hello, this is a test"):
         """Debug endpoint to test chat functionality."""
         try:
-            actual_app_state = getattr(app.state, "app_state", {})
-            if "chat_graph" not in actual_app_state:
+            if "chat_graph" not in app_state:
                 return {"error": "Chat graph not initialized"}
 
             from app.graphs.base import GraphState
@@ -913,17 +826,19 @@ if settings.environment != "production":
                 original_query=message, session_id="debug_test", user_id="debug_user"
             )
 
-            result = await actual_app_state["chat_graph"].execute(test_state)
+            result = await app_state["chat_graph"].execute(test_state)
 
             return {
                 "success": True,
-                "response": getattr(result, "final_response", "No response generated"),
-                "execution_time": getattr(result, "execution_time", 0),
-                "cost": (
-                    result.calculate_total_cost()
-                    if hasattr(result, "calculate_total_cost")
-                    else 0
+                "response": getattr(
+                    result,
+                    "final_response",
+                    "No response generated"
                 ),
+                "execution_time": getattr(result, "execution_time", 0),
+                "cost": result.calculate_total_cost()
+                if hasattr(result, "calculate_total_cost")
+                else 0,
                 "execution_path": getattr(result, "execution_path", []),
             }
 
@@ -934,16 +849,15 @@ if settings.environment != "production":
     async def debug_test_search(query: str = "latest AI developments"):
         """Debug endpoint to test search functionality."""
         try:
-            actual_app_state = getattr(app.state, "app_state", {})
-            if "search_graph" not in actual_app_state:
+            if "search_graph" not in app_state:
                 return {"error": "Search graph not initialized"}
 
             from app.graphs.search_graph import execute_search
 
             result = await execute_search(
                 query=query,
-                model_manager=actual_app_state["model_manager"],
-                cache_manager=actual_app_state["cache_manager"],
+                model_manager=app_state["model_manager"],
+                cache_manager=app_state["cache_manager"],
                 budget=2.0,
                 quality="balanced",
                 max_results=5,
@@ -977,6 +891,44 @@ if settings.environment != "production":
             "startup_report", {"error": "No startup report available"}
         )
         return startup_report
+
+    @app.get("/auth/test")
+    async def test_auth(request: Request):
+        """Test endpoint to diagnose authentication issues."""
+        from app.api.security import get_current_user
+        
+        try:
+            # Get auth headers
+            auth_header = request.headers.get("authorization", "")
+            
+            # Try to get current user
+            user = await get_current_user(request)
+            
+            return {
+                "status": "success",
+                "auth_header_present": bool(auth_header),
+                "auth_header_preview": auth_header[:20] + "..." if len(auth_header) > 20 else auth_header,
+                "user": {
+                    "user_id": user.get("user_id"),
+                    "tier": user.get("tier"),
+                    "is_anonymous": user.get("is_anonymous", False),
+                    "permissions": user.get("permissions", [])
+                },
+                "client_ip": request.client.host if request.client else "unknown",
+                "cors_headers": {
+                    "origin": request.headers.get("origin", ""),
+                    "host": request.headers.get("host", ""),
+                    "user_agent": request.headers.get("user-agent", "")[:50] + "..." if len(request.headers.get("user-agent", "")) > 50 else request.headers.get("user-agent", "")
+                }
+            }
+        except Exception as e:
+            return {
+                "status": "error",
+                "error": str(e),
+                "error_type": type(e).__name__,
+                "auth_header_present": bool(request.headers.get("authorization")),
+                "client_ip": request.client.host if request.client else "unknown"
+            }
 
 
 # Static files (if needed)
@@ -1128,78 +1080,3 @@ Environment Variables Required:
 - REDIS_URL=redis://localhost:6379
 - OLLAMA_HOST=http://localhost:11434
 """
-
-# Adaptive Performance Monitoring Middleware
-@app.middleware("http")
-async def adaptive_performance_middleware(request: Request, call_next):
-    """Enhanced monitoring specifically for adaptive routing performance"""
-    start_time = time.time()
-    
-    # Track if this is an adaptive routing request
-    is_adaptive_request = request.url.path.startswith("/api/chat")
-    
-    response = await call_next(request)
-    process_time = time.time() - start_time
-    
-    # Track adaptive system specific metrics
-    if is_adaptive_request:
-        await track_adaptive_routing_performance(
-            endpoint=request.url.path,
-            method=request.method,
-            response_time=process_time,
-            status_code=response.status_code,
-            user_agent=request.headers.get("user-agent", "unknown")
-        )
-        
-        # Log slow adaptive requests specifically
-        if process_time > 5.0:  # Slower than target
-            logger.warning(
-                "slow_adaptive_request",
-                endpoint=request.url.path,
-                response_time=process_time,
-                target_time=5.0
-            )
-    
-    response.headers["X-Process-Time"] = str(process_time)
-    response.headers["X-Adaptive-Route"] = "true" if is_adaptive_request else "false"
-    return response
-
-async def track_adaptive_routing_performance(
-    endpoint: str,
-    method: str, 
-    response_time: float,
-    status_code: int,
-    user_agent: str
-):
-    """Track adaptive routing specific performance metrics"""
-    try:
-        # Performance data structure
-        performance_data = {
-            "timestamp": time.time(),
-            "endpoint": endpoint,
-            "method": method,
-            "response_time": response_time,
-            "status_code": status_code,
-            "success": 200 <= status_code < 400,
-            "user_agent": user_agent
-        }
-        
-        # Log performance metrics
-        logger.info("adaptive_performance", **performance_data)
-        
-        # Store in cache for analysis (if cache is available)
-        try:
-            from app.api.dependencies import get_cache_manager
-            cache_manager = get_cache_manager()
-            if cache_manager:
-                cache_key = f"adaptive_perf:{int(time.time())}"
-                await cache_manager.set(
-                    cache_key, 
-                    performance_data, 
-                    ttl=3600  # 1 hour retention
-                )
-        except Exception:
-            pass  # Cache unavailable, continue without it
-            
-    except Exception as e:
-        logger.error("adaptive_performance_tracking_failed", error=str(e))
