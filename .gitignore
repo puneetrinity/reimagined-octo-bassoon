@@ -27,6 +27,10 @@ MANIFEST
 *.manifest
 *.spec
 
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
 # Unit test / coverage reports
 htmlcov/
 .tox/
@@ -40,7 +44,45 @@ coverage.xml
 .hypothesis/
 .pytest_cache/
 
-# Virtual environments
+# Translations
+*.mo
+*.pot
+
+# Django stuff:
+*.log
+local_settings.py
+db.sqlite3
+
+# Flask stuff:
+instance/
+.webassets-cache
+
+# Scrapy stuff:
+.scrapy
+
+# Sphinx documentation
+docs/_build/
+
+# PyBuilder
+target/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IPython
+profile_default/
+ipython_config.py
+
+# pyenv
+.python-version
+
+# celery beat schedule file
+celerybeat-schedule
+
+# SageMath parsed files
+*.sage.py
+
+# Environments
 .env
 .venv
 env/
@@ -58,12 +100,26 @@ verify_*.py
 # Temporary development files
 docker-compose.testing.yml
 
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# Docker
+.dockerignore
 
 # OS
 .DS_Store
@@ -74,9 +130,48 @@ docker-compose.testing.yml
 ehthumbs.db
 Thumbs.db
 
-# Project specific
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
 *.log
+logs/
+log/
+
+# Data and indexes
+data/
+indexes/
+*.faiss
+*.index
+
+# Temporary files
+*.tmp
+*.temp
+temp/
+tmp/
+
+# Node modules (if any)
+node_modules/
+
+# Redis dumps
+dump.rdb
+
+# Application specific
+server.log
+*.bundle
+diagnostic_log.txt
+load_test_results.txt
+integration_test_results.json
+memory_test_results.json
+
+# Project specific
 .env.local
 .env.production
 .env.development
-node_modules/
+
+# Git bundles
+*.bundle
