@@ -38,7 +38,11 @@ class A5000MemoryManager:
         # Memory tracking
         self.loaded_models: Dict[str, ModelMemoryInfo] = {}
         self.current_usage_gb = 0.0
-        self.loading_locks: Dict[str, asyncio.Lock] = {}
+        
+        # Thread-safe locking
+        self._loading_locks: Dict[str, asyncio.Lock] = {}
+        self._locks_lock = asyncio.Lock()  # Protects the locks dictionary
+        self._memory_lock = asyncio.Lock()  # Protects memory operations
 
         # Statistics
         self.stats = {
@@ -135,35 +139,46 @@ class A5000MemoryManager:
 
         return False
 
+    async def _get_loading_lock(self, model_name: str) -> asyncio.Lock:
+        """Thread-safe lock acquisition for model loading."""
+        async with self._locks_lock:
+            if model_name not in self._loading_locks:
+                self._loading_locks[model_name] = asyncio.Lock()
+            return self._loading_locks[model_name]
+
     async def ensure_model_loaded(
         self, model_name: str, required_models: Optional[List[str]] = None
     ) -> bool:
-        """Ensure a model is loaded, handling memory management"""
+        """Ensure a model is loaded, handling memory management with proper synchronization."""
         required_models = required_models or []
 
-        # Check if already loaded
-        if (
-            model_name in self.loaded_models
-            and self.loaded_models[model_name].status == "loaded"
-        ):
-            self.loaded_models[model_name].last_used = time.time()
-            self.loaded_models[model_name].use_count += 1
-            self.stats["cache_hits"] += 1
-            logger.debug(f"Model {model_name} already loaded (cache hit)")
-            return True
-
-        # Get or create loading lock
-        if model_name not in self.loading_locks:
-            self.loading_locks[model_name] = asyncio.Lock()
-
-        async with self.loading_locks[model_name]:
-            # Double-check after acquiring lock
+        # Fast path: check if already loaded without locks
+        async with self._memory_lock:
             if (
                 model_name in self.loaded_models
                 and self.loaded_models[model_name].status == "loaded"
             ):
                 self.loaded_models[model_name].last_used = time.time()
+                self.loaded_models[model_name].use_count += 1
+                self.stats["cache_hits"] += 1
+                logger.debug(f"Model {model_name} already loaded (cache hit)")
                 return True
+
+        # Get model-specific loading lock
+        loading_lock = await self._get_loading_lock(model_name)
+
+        async with loading_lock:
+            # Double-check after acquiring lock (another thread might have loaded it)
+            async with self._memory_lock:
+                if (
+                    model_name in self.loaded_models
+                    and self.loaded_models[model_name].status == "loaded"
+                ):
+                    self.loaded_models[model_name].last_used = time.time()
+                    self.loaded_models[model_name].use_count += 1
+                    self.stats["cache_hits"] += 1
+                    logger.debug(f"Model {model_name} already loaded (double-check hit)")
+                    return True
 
             # Check if we can fit the model
             if not self.can_fit_model(model_name, required_models):
@@ -173,24 +188,25 @@ class A5000MemoryManager:
             return await self._load_model(model_name)
 
     async def _load_model(self, model_name: str) -> bool:
-        """Actually load a model"""
+        """Actually load a model with proper synchronization."""
         start_time = time.time()
         required_memory = self.get_memory_requirement(model_name)
         priority_tier = self.get_model_priority_tier(model_name)
 
         try:
-            # Mark as loading
-            if model_name not in self.loaded_models:
-                self.loaded_models[model_name] = ModelMemoryInfo(
-                    name=model_name,
-                    memory_gb=required_memory,
-                    status="loading",
-                    last_used=time.time(),
-                    load_time=0.0,
-                    priority_tier=priority_tier,
-                )
-            else:
-                self.loaded_models[model_name].status = "loading"
+            # Mark as loading under lock
+            async with self._memory_lock:
+                if model_name not in self.loaded_models:
+                    self.loaded_models[model_name] = ModelMemoryInfo(
+                        name=model_name,
+                        memory_gb=required_memory,
+                        status="loading",
+                        last_used=time.time(),
+                        load_time=0.0,
+                        priority_tier=priority_tier,
+                    )
+                else:
+                    self.loaded_models[model_name].status = "loading"
 
             logger.info(
                 f"Loading model {model_name} ({required_memory}GB, {priority_tier})"
@@ -200,16 +216,17 @@ class A5000MemoryManager:
             # For now, simulate the loading process
             await asyncio.sleep(0.1)  # Simulate loading time
 
-            # Update memory tracking
-            self.current_usage_gb += required_memory
-            load_time = time.time() - start_time
+            # Update memory tracking atomically
+            async with self._memory_lock:
+                self.current_usage_gb += required_memory
+                load_time = time.time() - start_time
 
-            # Update model info
-            self.loaded_models[model_name].status = "loaded"
-            self.loaded_models[model_name].load_time = load_time
-            self.loaded_models[model_name].last_used = time.time()
+                # Update model info
+                self.loaded_models[model_name].status = "loaded"
+                self.loaded_models[model_name].load_time = load_time
+                self.loaded_models[model_name].last_used = time.time()
 
-            self.stats["total_loads"] += 1
+                self.stats["total_loads"] += 1
 
             logger.info(
                 f"Model {model_name} loaded successfully in {load_time:.2f}s "
@@ -220,8 +237,9 @@ class A5000MemoryManager:
 
         except Exception as e:
             logger.error(f"Failed to load model {model_name}: {e}")
-            if model_name in self.loaded_models:
-                self.loaded_models[model_name].status = "error"
+            async with self._memory_lock:
+                if model_name in self.loaded_models:
+                    self.loaded_models[model_name].status = "error"
             return False
 
     async def _free_memory_for_model(
@@ -268,25 +286,29 @@ class A5000MemoryManager:
         self.stats["memory_pressure_events"] += 1
 
     async def _unload_model(self, model_name: str):
-        """Unload a model from memory"""
-        if model_name not in self.loaded_models:
-            return
+        """Unload a model from memory with proper synchronization."""
+        async with self._memory_lock:
+            if model_name not in self.loaded_models:
+                return
 
-        info = self.loaded_models[model_name]
-        if info.status != "loaded":
-            return
+            info = self.loaded_models[model_name]
+            if info.status != "loaded":
+                return
 
-        logger.info(f"Unloading model {model_name} to free {info.memory_gb}GB")
+            logger.info(f"Unloading model {model_name} to free {info.memory_gb}GB")
+
+            # Mark as unloading to prevent race conditions
+            info.status = "unloading"
 
         try:
             # Here you would call your actual model unloading logic
             await asyncio.sleep(0.05)  # Simulate unloading time
 
-            # Update memory tracking
-            self.current_usage_gb -= info.memory_gb
-            info.status = "unloaded"
-
-            self.stats["total_unloads"] += 1
+            # Update memory tracking atomically
+            async with self._memory_lock:
+                self.current_usage_gb -= info.memory_gb
+                info.status = "unloaded"
+                self.stats["total_unloads"] += 1
 
             logger.info(
                 f"Model {model_name} unloaded (Memory usage: {self.current_usage_gb:.1f}GB)"
@@ -294,6 +316,9 @@ class A5000MemoryManager:
 
         except Exception as e:
             logger.error(f"Failed to unload model {model_name}: {e}")
+            async with self._memory_lock:
+                if model_name in self.loaded_models:
+                    self.loaded_models[model_name].status = "error"
 
     async def preload_priority_models(self) -> Dict[str, bool]:
         """Preload T0 and T1 priority models"""
@@ -388,3 +413,51 @@ class A5000MemoryManager:
                         current_memory += model_memory
 
             return priority_order
+
+    async def cleanup_unloaded_models(self):
+        """Clean up tracking data for unloaded models to prevent memory leaks."""
+        async with self._memory_lock:
+            to_remove = []
+            for model_name, info in self.loaded_models.items():
+                if info.status == "unloaded":
+                    to_remove.append(model_name)
+            
+            for model_name in to_remove:
+                del self.loaded_models[model_name]
+                
+            # Also clean up unused locks
+            async with self._locks_lock:
+                unused_locks = []
+                for model_name in self._loading_locks:
+                    if model_name not in self.loaded_models:
+                        unused_locks.append(model_name)
+                
+                for model_name in unused_locks:
+                    del self._loading_locks[model_name]
+                    
+            if to_remove:
+                logger.info(f"Cleaned up {len(to_remove)} unloaded model entries")
+
+    async def shutdown(self):
+        """Gracefully shutdown the memory manager."""
+        logger.info("Shutting down A5000MemoryManager...")
+        
+        # Unload all models
+        models_to_unload = []
+        async with self._memory_lock:
+            for model_name, info in self.loaded_models.items():
+                if info.status == "loaded":
+                    models_to_unload.append(model_name)
+        
+        for model_name in models_to_unload:
+            await self._unload_model(model_name)
+        
+        # Clean up all tracking data
+        async with self._memory_lock:
+            self.loaded_models.clear()
+            self.current_usage_gb = 0.0
+            
+        async with self._locks_lock:
+            self._loading_locks.clear()
+            
+        logger.info("A5000MemoryManager shutdown completed")

@@ -369,13 +369,23 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Add CORS middleware
+# Add CORS middleware with security considerations
+from app.core.config import get_settings
+settings = get_settings()
+
+# Filter out wildcard origins in production
+allowed_origins = settings.allowed_origins
+if settings.environment == "production":
+    allowed_origins = [origin for origin in allowed_origins if origin != "*"]
+    if not allowed_origins:
+        allowed_origins = ["https://yourdomain.com"]  # Add your production domain
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.allowed_origins,
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE"],
-    allow_headers=["*"],
+    allow_headers=["Authorization", "Content-Type", "X-Requested-With"],
 )
 
 # Add security middleware

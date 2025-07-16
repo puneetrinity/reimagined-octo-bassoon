@@ -6,6 +6,7 @@ Handles routing shortcuts, conversation history, and performance hints
 import asyncio
 import hashlib
 import json
+import threading
 from datetime import datetime, timedelta
 from typing import Any, Dict, Optional
 
@@ -120,6 +121,7 @@ class CacheManager:
         self.metrics = CacheMetrics()
         self._local_cache: Dict[str, tuple[Any, datetime]] = {}
         self._local_cache_max_size = 1000
+        self._local_cache_lock = threading.Lock()
 
     async def initialize(self):
         """Initialize Redis connection with proper async handling and fallbacks."""
@@ -188,14 +190,15 @@ class CacheManager:
                     response_time = (datetime.now() - start_time).total_seconds()
                     self.metrics.update_hit(response_time)
                     return json.loads(value)
-            if key in self._local_cache:
-                value, expiry = self._local_cache[key]
-                if datetime.now() < expiry:
-                    response_time = (datetime.now() - start_time).total_seconds()
-                    self.metrics.update_hit(response_time)
-                    return value
-                else:
-                    del self._local_cache[key]
+            with self._local_cache_lock:
+                if key in self._local_cache:
+                    value, expiry = self._local_cache[key]
+                    if datetime.now() < expiry:
+                        response_time = (datetime.now() - start_time).total_seconds()
+                        self.metrics.update_hit(response_time)
+                        return value
+                    else:
+                        self._local_cache.pop(key, None)
             response_time = (datetime.now() - start_time).total_seconds()
             self.metrics.update_miss(response_time)
             return default
@@ -214,7 +217,8 @@ class CacheManager:
                 else:
                     await self.redis.set(key, serialized_value)
             expiry = datetime.now() + timedelta(seconds=ttl or CacheStrategy.TTL_MEDIUM)
-            self._local_cache[key] = (value, expiry)
+            with self._local_cache_lock:
+                self._local_cache[key] = (value, expiry)
             self._cleanup_local_cache()
             return True
         except Exception as e:
@@ -223,7 +227,8 @@ class CacheManager:
                 expiry = datetime.now() + timedelta(
                     seconds=ttl or CacheStrategy.TTL_MEDIUM
                 )
-                self._local_cache[key] = (value, expiry)
+                with self._local_cache_lock:
+                    self._local_cache[key] = (value, expiry)
                 self._cleanup_local_cache()
                 return True
             except Exception as local_e:
@@ -231,24 +236,37 @@ class CacheManager:
                 return False
 
     def _cleanup_local_cache(self):
-        if len(self._local_cache) > self._local_cache_max_size:
-            now = datetime.now()
-            expired_keys = [
-                key for key, (_, expiry) in self._local_cache.items() if now >= expiry
-            ]
-            for key in expired_keys:
-                del self._local_cache[key]
+        """Thread-safe cleanup of local cache"""
+        with self._local_cache_lock:
             if len(self._local_cache) > self._local_cache_max_size:
-                sorted_items = sorted(
-                    self._local_cache.items(),
-                    key=lambda x: x[1][1],
-                )
-                self._local_cache = dict(sorted_items[-self._local_cache_max_size :])
+                now = datetime.now()
+                expired_keys = []
+                
+                # Collect expired keys safely
+                for key, (_, expiry) in list(self._local_cache.items()):
+                    if now >= expiry:
+                        expired_keys.append(key)
+                
+                # Remove expired keys
+                for key in expired_keys:
+                    self._local_cache.pop(key, None)
+                
+                # If still over limit, remove oldest entries
+                if len(self._local_cache) > self._local_cache_max_size:
+                    sorted_items = sorted(
+                        self._local_cache.items(),
+                        key=lambda x: x[1][1],  # Sort by expiry time
+                    )
+                    # Keep only the most recent entries
+                    self._local_cache = dict(sorted_items[-self._local_cache_max_size:])
 
     async def get_stats(self) -> Dict[str, Any]:
         """Get cache performance statistics"""
+        with self._local_cache_lock:
+            local_cache_size = len(self._local_cache)
+            
         stats = {
-            "local_cache_size": len(self._local_cache),
+            "local_cache_size": local_cache_size,
             "local_cache_max_size": self._local_cache_max_size,
             "redis_connected": self.redis is not None,
             "metrics": {

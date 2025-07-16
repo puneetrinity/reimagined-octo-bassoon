@@ -106,13 +106,18 @@ class ClickHouseManager:
         self.batch_size = 1000
         self.flush_interval = 300  # 5 minutes
 
-        # In-memory buffers for batch processing
+        # In-memory buffers for batch processing with thread safety
         self.system_metrics_buffer: List[SystemMetricsRecord] = []
         self.cost_events_buffer: List[CostEventRecord] = []
         self.adaptive_metrics_buffer: List[AdaptiveMetricsRecord] = []
+        self._buffer_lock = asyncio.Lock()
 
         self.last_flush_time = time.time()
 
+        # Background task tracking
+        self._background_task = None
+        self._shutdown_event = asyncio.Event()
+        
         logger.info(
             "clickhouse_manager_initialized", host=host, port=port, database=database
         )
@@ -147,8 +152,8 @@ class ClickHouseManager:
             self.connected = True
             logger.info("clickhouse_connection_established")
 
-            # Start background flush task
-            asyncio.create_task(self._background_flush_task())
+            # Start background flush task with proper tracking
+            self._background_task = asyncio.create_task(self._safe_background_flush_task())
 
             return True
 
@@ -273,7 +278,8 @@ class ClickHouseManager:
                 uptime_seconds=system_data.get("uptime_seconds", 0),
             )
 
-            self.system_metrics_buffer.append(record)
+            async with self._buffer_lock:
+                self.system_metrics_buffer.append(record)
             await self._check_flush()
 
         except Exception as e:
@@ -309,7 +315,8 @@ class ClickHouseManager:
                 details=json.dumps(details) if details else None,
             )
 
-            self.cost_events_buffer.append(record)
+            async with self._buffer_lock:
+                self.cost_events_buffer.append(record)
             await self._check_flush()
 
         except Exception as e:
@@ -343,19 +350,21 @@ class ClickHouseManager:
                 reward_score=reward_score,
             )
 
-            self.adaptive_metrics_buffer.append(record)
+            async with self._buffer_lock:
+                self.adaptive_metrics_buffer.append(record)
             await self._check_flush()
 
         except Exception as e:
             logger.error("adaptive_metrics_recording_failed", error=str(e))
 
     async def _check_flush(self):
-        """Check if buffers need flushing"""
-        total_records = (
-            len(self.system_metrics_buffer)
-            + len(self.cost_events_buffer)
-            + len(self.adaptive_metrics_buffer)
-        )
+        """Check if buffers need flushing with thread safety"""
+        async with self._buffer_lock:
+            total_records = (
+                len(self.system_metrics_buffer)
+                + len(self.cost_events_buffer)
+                + len(self.adaptive_metrics_buffer)
+            )
 
         time_since_flush = time.time() - self.last_flush_time
 
@@ -363,31 +372,34 @@ class ClickHouseManager:
             await self._flush_buffers()
 
     async def _flush_buffers(self):
-        """Flush all buffers to ClickHouse"""
+        """Flush all buffers to ClickHouse with thread safety"""
         if not self.connected:
             return
 
         try:
-            # Flush system metrics
-            if self.system_metrics_buffer:
-                data = [record.to_dict() for record in self.system_metrics_buffer]
-                self.client.insert("system_metrics", data)
-                logger.debug("system_metrics_flushed", count=len(data))
+            # Atomically copy and clear buffers
+            async with self._buffer_lock:
+                system_metrics_data = [record.to_dict() for record in self.system_metrics_buffer]
+                cost_events_data = [record.to_dict() for record in self.cost_events_buffer]
+                adaptive_metrics_data = [record.to_dict() for record in self.adaptive_metrics_buffer]
+                
+                # Clear buffers after copying
                 self.system_metrics_buffer.clear()
-
-            # Flush cost events
-            if self.cost_events_buffer:
-                data = [record.to_dict() for record in self.cost_events_buffer]
-                self.client.insert("cost_events", data)
-                logger.debug("cost_events_flushed", count=len(data))
                 self.cost_events_buffer.clear()
-
-            # Flush adaptive metrics
-            if self.adaptive_metrics_buffer:
-                data = [record.to_dict() for record in self.adaptive_metrics_buffer]
-                self.client.insert("adaptive_metrics", data)
-                logger.debug("adaptive_metrics_flushed", count=len(data))
                 self.adaptive_metrics_buffer.clear()
+            
+            # Insert data outside of lock to avoid blocking buffer operations
+            if system_metrics_data:
+                self.client.insert("system_metrics", system_metrics_data)
+                logger.debug("system_metrics_flushed", count=len(system_metrics_data))
+
+            if cost_events_data:
+                self.client.insert("cost_events", cost_events_data)
+                logger.debug("cost_events_flushed", count=len(cost_events_data))
+
+            if adaptive_metrics_data:
+                self.client.insert("adaptive_metrics", adaptive_metrics_data)
+                logger.debug("adaptive_metrics_flushed", count=len(adaptive_metrics_data))
 
             self.last_flush_time = time.time()
 
@@ -567,6 +579,49 @@ class ClickHouseManager:
             logger.error("performance_analytics_query_failed", error=str(e))
             return {"error": str(e)}
 
+    async def _safe_background_flush_task(self):
+        """Safely run background flush task with error handling."""
+        try:
+            await self._background_flush_task()
+        except asyncio.CancelledError:
+            logger.info("Background flush task cancelled")
+            raise
+        except Exception as e:
+            logger.error("Background flush task failed", error=str(e), exc_info=True)
+
+    async def _background_flush_task(self):
+        """Background task to flush buffers periodically"""
+        while not self._shutdown_event.is_set():
+            try:
+                await asyncio.sleep(self.flush_interval)
+                if self.connected:
+                    await self._flush_buffers()
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                logger.error("Background flush error", error=str(e))
+                await asyncio.sleep(60)  # Wait before retrying
+
+    async def shutdown(self):
+        """Gracefully shutdown the ClickHouse manager"""
+        logger.info("Shutting down ClickHouse manager...")
+        
+        # Signal shutdown to background task
+        self._shutdown_event.set()
+        
+        # Cancel background task
+        if self._background_task:
+            self._background_task.cancel()
+            try:
+                await self._background_task
+            except asyncio.CancelledError:
+                pass
+        
+        # Cleanup connection
+        await self.cleanup()
+        
+        logger.info("ClickHouse manager shutdown completed")
+
     async def cleanup(self):
         """Cleanup ClickHouse connection"""
         if self.connected:
@@ -583,6 +638,11 @@ class ClickHouseManager:
 
             except Exception as e:
                 logger.error("clickhouse_cleanup_failed", error=str(e))
+                
+        # Clear buffers to prevent memory leaks
+        self.system_metrics_buffer.clear()
+        self.cost_events_buffer.clear()
+        self.adaptive_metrics_buffer.clear()
 
 
 # Global ClickHouse manager instance

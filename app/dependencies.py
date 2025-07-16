@@ -48,13 +48,25 @@ def get_model_manager(request: Any = None) -> ModelManager:
     # Try to initialize synchronously if possible
     try:
         # Check if we're in an async context
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            # Schedule initialization for later
+        try:
+            loop = asyncio.get_running_loop()
+            # We're in an async context, schedule for later
             asyncio.create_task(fallback_manager.initialize())
-        else:
-            # Run initialization synchronously
-            asyncio.run(fallback_manager.initialize())
+        except RuntimeError:
+            # No running loop, we can create a new one
+            try:
+                asyncio.run(fallback_manager.initialize())
+            except RuntimeError as run_error:
+                logger.warning(f"Could not initialize fallback manager: {run_error}")
+                # Initialize without async features as fallback
+                pass
+            except KeyboardInterrupt:
+                logger.warning("Fallback manager initialization interrupted")
+                pass
+    except ImportError as e:
+        logger.warning(f"Failed to import ModelManager dependencies: {e}")
+    except ConnectionError as e:
+        logger.warning(f"Connection error during fallback manager initialization: {e}")
     except Exception as e:
         logger.warning(f"Fallback ModelManager initialization failed: {e}")
 
@@ -87,6 +99,12 @@ def get_cache_manager() -> CacheManager:
             asyncio.create_task(fallback_cache.initialize())
         else:
             asyncio.run(fallback_cache.initialize())
+    except ImportError as e:
+        logger.warning(f"Failed to import CacheManager dependencies: {e}")
+    except ConnectionError as e:
+        logger.warning(f"Redis connection error during cache initialization: {e}")
+    except RuntimeError as e:
+        logger.warning(f"Runtime error during cache initialization: {e}")
     except Exception as e:
         logger.warning(f"Fallback CacheManager initialization failed: {e}")
 

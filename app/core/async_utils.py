@@ -77,8 +77,9 @@ async def safe_execute(
         else:
             result = await coro
 
-        # Ensure the result is fully awaited
-        return await ensure_awaited(result)
+        # Return the result directly - no need for double-awaiting
+        # The coroutine was already awaited above
+        return result
 
     except asyncio.TimeoutError:
         logger.error(f"Timeout ({timeout}s) executing {coro_func.__name__}")
@@ -111,26 +112,26 @@ def coroutine_safe(timeout: Optional[float] = None):
 
 async def safe_gather(*coroutines, return_exceptions: bool = False) -> list:
     """
-    Safely gather multiple coroutines and ensure all results are awaited.
+    Safely gather multiple coroutines without double-awaiting.
 
     Args:
         *coroutines: Coroutines to gather
         return_exceptions: Whether to return exceptions instead of raising
 
     Returns:
-        List of fully awaited results
+        List of results from asyncio.gather
     """
     try:
+        # asyncio.gather already awaits all coroutines, no need for additional awaiting
         results = await asyncio.gather(*coroutines, return_exceptions=return_exceptions)
 
-        # Ensure all results are fully awaited
-        safe_results = []
-        for result in results:
-            if isinstance(result, Exception) and not return_exceptions:
-                raise result
-            safe_results.append(await ensure_awaited(result))
+        # Handle exceptions if not returning them
+        if not return_exceptions:
+            for result in results:
+                if isinstance(result, Exception):
+                    raise result
 
-        return safe_results
+        return results
 
     except Exception as e:
         logger.error(f"Error in safe_gather: {e}")

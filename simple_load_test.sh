@@ -3,8 +3,13 @@
 # Tests all endpoints with concurrent requests using curl
 
 BASE_URL="http://localhost:8000"
-API_KEY="development-key-2024"
+API_KEY="${API_KEY:-development-key-2024}"  # Use env var or fallback
 RESULTS_FILE="load_test_results.txt"
+
+# Check if API key is still using default development key
+if [ "$API_KEY" = "development-key-2024" ]; then
+    echo "⚠️  WARNING: Using default development API key. Set API_KEY environment variable for production."
+fi
 
 echo "🔥 AI Search System - Load Testing" | tee $RESULTS_FILE
 echo "=================================================" | tee -a $RESULTS_FILE

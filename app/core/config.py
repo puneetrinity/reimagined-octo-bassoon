@@ -18,6 +18,39 @@ env_file = Path(__file__).parent.parent.parent / ".env"
 load_dotenv(env_file)
 
 
+def get_jwt_secret_key() -> str:
+    """Get JWT secret key with proper fallback for production."""
+    # First check environment variable
+    secret_key = os.getenv("JWT_SECRET_KEY")
+    if secret_key:
+        return secret_key
+        
+    # Check if we're in production
+    environment = os.getenv("ENVIRONMENT", "development").lower()
+    if environment == "production":
+        # In production, require explicit secret key
+        raise ValueError(
+            "JWT_SECRET_KEY environment variable is required in production. "
+            "Generate a secure key: python -c 'import secrets; print(secrets.token_hex(32))'"
+        )
+    
+    # For development, use a consistent key from file or generate one
+    secret_file = Path(__file__).parent.parent.parent / ".jwt_secret"
+    if secret_file.exists():
+        return secret_file.read_text().strip()
+    
+    # Generate a new key for development and save it
+    import secrets
+    new_secret = secrets.token_hex(32)
+    try:
+        secret_file.write_text(new_secret)
+        print(f"Generated new JWT secret key for development: {secret_file}")
+    except Exception as e:
+        print(f"Warning: Could not save JWT secret to file: {e}")
+    
+    return new_secret
+
+
 def get_ollama_host() -> str:
     """Get the correct Ollama host URL with RunPod deployment support."""
     # Check environment variable first
@@ -125,7 +158,7 @@ class Settings(BaseSettings):
 
     # Security
     jwt_secret_key: str = Field(
-        default_factory=lambda: os.getenv("JWT_SECRET_KEY", os.urandom(32).hex())
+        default_factory=lambda: get_jwt_secret_key()
     )
     jwt_algorithm: str = "HS256"
     jwt_expiry_hours: int = 24
@@ -153,13 +186,6 @@ class Settings(BaseSettings):
     DEFAULT_QUALITY_REQUIREMENT: str = "standard"
     MAX_SEARCH_RESULTS: int = 10
 
-    # Model configuration to enable loading from .env files
-    model_config = {
-        "env_file": ".env",
-        "env_file_encoding": "utf-8",
-        "case_sensitive": False,
-        "extra": "ignore",
-    }
 
 
 class DevelopmentSettings(Settings):

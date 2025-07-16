@@ -155,9 +155,13 @@ class AdvancedCacheManager:
         await self._load_metrics()
         await self._load_query_patterns()
 
-        # Start background optimization tasks
-        self._optimization_task = asyncio.create_task(self._background_optimization())
-        self._warming_task = asyncio.create_task(self._background_cache_warming())
+        # Start background optimization tasks with proper exception handling
+        try:
+            self._optimization_task = asyncio.create_task(self._safe_background_optimization())
+            self._warming_task = asyncio.create_task(self._safe_background_cache_warming())
+        except Exception as e:
+            logger.error("Failed to start background tasks", error=str(e))
+            raise
 
         logger.info("Advanced cache manager initialized")
 
@@ -347,3 +351,113 @@ class AdvancedCacheManager:
         parts = key.lower().replace(":", " ").replace("_", " ").split()
         keywords = [part for part in parts if len(part) > 2]
         return keywords[:5]  # Limit to 5 keywords
+
+    async def _safe_background_optimization(self):
+        """Safely run background optimization with error handling."""
+        try:
+            await self._background_optimization()
+        except asyncio.CancelledError:
+            logger.info("Background optimization task cancelled")
+            raise
+        except Exception as e:
+            logger.error("Background optimization task failed", error=str(e), exc_info=True)
+
+    async def _safe_background_cache_warming(self):
+        """Safely run background cache warming with error handling."""
+        try:
+            await self._background_cache_warming()
+        except asyncio.CancelledError:
+            logger.info("Background cache warming task cancelled")
+            raise
+        except Exception as e:
+            logger.error("Background cache warming task failed", error=str(e), exc_info=True)
+
+    async def _background_optimization(self):
+        """Background optimization loop"""
+        while True:
+            try:
+                await asyncio.sleep(300)  # 5 minutes
+                await self._optimize_cache_strategies()
+                await self._cleanup_old_metrics()
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                logger.error("Optimization loop error", error=str(e))
+                await asyncio.sleep(60)  # Wait before retrying
+
+    async def _background_cache_warming(self):
+        """Background cache warming loop"""
+        while True:
+            try:
+                await asyncio.sleep(600)  # 10 minutes
+                if self.warming_enabled:
+                    await self._warm_predictive_cache()
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                logger.error("Cache warming loop error", error=str(e))
+                await asyncio.sleep(300)  # Wait before retrying
+
+    async def _optimize_cache_strategies(self):
+        """Optimize cache strategies based on metrics"""
+        # Implementation would go here
+        pass
+
+    async def _cleanup_old_metrics(self):
+        """Clean up old metrics to prevent memory leaks"""
+        current_time = datetime.now()
+        to_remove = []
+        
+        for key, metrics in self.metrics.items():
+            if metrics.last_access:
+                hours_since_access = (current_time - metrics.last_access).total_seconds() / 3600
+                if hours_since_access > 24:  # Remove metrics older than 24 hours
+                    to_remove.append(key)
+        
+        for key in to_remove:
+            del self.metrics[key]
+            
+        if to_remove:
+            logger.info(f"Cleaned up {len(to_remove)} old cache metrics")
+
+    async def _warm_predictive_cache(self):
+        """Warm cache based on predictive patterns"""
+        # Implementation would go here
+        pass
+
+    async def shutdown(self):
+        """Gracefully shutdown the advanced cache manager"""
+        logger.info("Shutting down advanced cache manager...")
+        
+        # Cancel background tasks
+        if self._optimization_task:
+            self._optimization_task.cancel()
+            try:
+                await self._optimization_task
+            except asyncio.CancelledError:
+                pass
+        
+        if self._warming_task:
+            self._warming_task.cancel()
+            try:
+                await self._warming_task
+            except asyncio.CancelledError:
+                pass
+        
+        # Clear all data structures
+        self.metrics.clear()
+        self.query_patterns.clear()
+        self.precompute_queue.clear()
+        self.cache_strategies.clear()
+        
+        logger.info("Advanced cache manager shutdown completed")
+
+    async def _load_metrics(self):
+        """Load cached metrics from storage"""
+        # Implementation would load from persistent storage
+        pass
+    
+    async def _load_query_patterns(self):
+        """Load query patterns from storage"""
+        # Implementation would load from persistent storage
+        pass

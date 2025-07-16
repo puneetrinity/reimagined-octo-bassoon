@@ -664,8 +664,8 @@
                 <div class="document-upload" id="documentUpload">
                     <div class="upload-area" onclick="triggerFileUpload()">
                         <div class="upload-icon">📄</div>
-                        <div class="upload-text">Click to upload documents<br>or drag & drop files here</div>
-                        <div class="upload-button">Choose Files</div>
+                        <div class="upload-text">Document upload disabled<br>Chat and search are available</div>
+                        <div class="upload-button" style="background: #bdc3c7; cursor: not-allowed;">Disabled</div>
                     </div>
                     <input type="file" id="fileInput" multiple accept=".pdf,.txt,.json,.md,.docx" style="display: none;">
                     <div class="upload-progress" id="uploadProgress">
@@ -731,8 +731,7 @@
     <script>
         // Configuration
         const CONFIG = {
-            UBIQUITOUS_BASE: 'http://localhost:8000',
-            NATIVE_SEARCH_BASE: 'http://localhost:8000',
+            API_BASE: 'http://localhost:8000',
             MAX_RETRIES: 3,
             RETRY_DELAY: 1000
         };
@@ -808,30 +807,46 @@
         async function checkSystemStatus() {
             // Check ubiquitous-octo-invention status
             try {
-                const response = await fetch(`${CONFIG.UBIQUITOUS_BASE}/health`);
-                if (response.ok) {
-                    updateStatus('chat', true, 'Chat: Online');
-                } else {
-                    updateStatus('chat', false, 'Chat: Offline');
-                }
-            } catch (error) {
-                updateStatus('chat', false, 'Chat: Offline');
-            }
-
-            // Check native search status
-            try {
-                const response = await fetch(`${CONFIG.NATIVE_SEARCH_BASE}/api/v1/native-search/health`);
+                const response = await fetch(`${CONFIG.API_BASE}/health`);
                 if (response.ok) {
                     const data = await response.json();
-                    updateStatus('search', true, 'Search: Online');
-                    updateStatus('ml', true, 'ML: Active');
+                    updateStatus('chat', true, 'Chat: Online');
+                    
+                    // Check if ML models are healthy
+                    if (data.components?.models === 'healthy') {
+                        updateStatus('ml', true, 'ML: Active');
+                    } else {
+                        updateStatus('ml', false, 'ML: Offline');
+                    }
                 } else {
-                    updateStatus('search', false, 'Search: Offline');
+                    updateStatus('chat', false, 'Chat: Offline');
                     updateStatus('ml', false, 'ML: Offline');
                 }
             } catch (error) {
-                updateStatus('search', false, 'Search: Offline');
+                updateStatus('chat', false, 'Chat: Offline');
                 updateStatus('ml', false, 'ML: Offline');
+            }
+
+            // Check search functionality by testing basic search
+            try {
+                const response = await fetch(`${CONFIG.API_BASE}/api/v1/search/basic`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        query: 'test',
+                        max_results: 1
+                    })
+                });
+                
+                if (response.ok) {
+                    updateStatus('search', true, 'Search: Online');
+                } else {
+                    updateStatus('search', false, 'Search: Offline');
+                }
+            } catch (error) {
+                updateStatus('search', false, 'Search: Offline');
             }
         }
 
@@ -1051,11 +1066,10 @@
             
             const searchData = {
                 query: query,
-                num_results: parseInt(maxResults),
-                search_type: "hybrid"
+                max_results: parseInt(maxResults)
             };
             
-            const response = await fetch(`${CONFIG.NATIVE_SEARCH_BASE}/api/v1/native-search/search`, {
+            const response = await fetch(`${CONFIG.API_BASE}/api/v1/search/basic`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -1067,7 +1081,15 @@
                 throw new Error(`Search failed: ${response.status}`);
             }
             
-            return await response.json();
+            const data = await response.json();
+            
+            // Convert from basic search format to expected format
+            return {
+                success: data.status === "success",
+                results: data.data?.results || [],
+                total_found: data.data?.total_results || 0,
+                response_time_ms: (data.data?.search_time || 0) * 1000
+            };
         }
 
         async function performChat(message, context = null) {
@@ -1082,7 +1104,7 @@
                 include_search: currentMode !== 'chat'
             };
             
-            const response = await fetch(`${CONFIG.UBIQUITOUS_BASE}/api/v1/chat/unified`, {
+            const response = await fetch(`${CONFIG.API_BASE}/api/v1/chat/unified`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -1284,11 +1306,10 @@
             }
         }
 
-        // Document upload functions
+        // Document upload functions (currently disabled)
         function triggerFileUpload() {
-            if (!isUploading) {
-                document.getElementById('fileInput').click();
-            }
+            // Document upload is currently disabled in this configuration
+            addMessage('system', '📄 Document upload is currently disabled. The system is configured for search and chat without document management.');
         }
 
         function handleFileSelect(event) {
@@ -1516,29 +1537,18 @@
         }
 
         async function loadDocumentList() {
-            // Try to load existing documents from the native search engine
+            // Document upload/listing is currently disabled
+            // The backend doesn't support document management in this configuration
             try {
-                const response = await fetch(`${CONFIG.NATIVE_SEARCH_BASE}/api/v1/native-search/documents/list`);
-                if (response.ok) {
-                    const documents = await response.json();
-                    // Update document count based on indexed documents
-                    const docCount = documents.length;
-                    systemStatus.documents = docCount;
-                    document.getElementById('docCount').textContent = docCount;
-                    
-                    const statusDot = document.getElementById('docs-status');
-                    statusDot.className = `status-dot ${docCount > 0 ? '' : 'warning'}`;
-                    
-                    // Update local uploaded documents list
-                    uploadedDocuments = documents.map(doc => ({
-                        id: doc.document_id,
-                        name: doc.title,
-                        size: doc.file_size,
-                        type: 'document',
-                        uploadTime: new Date(doc.upload_time)
-                    }));
-                    updateDocumentList();
-                }
+                systemStatus.documents = 0;
+                document.getElementById('docCount').textContent = 0;
+                
+                const statusDot = document.getElementById('docs-status');
+                statusDot.className = 'status-dot warning';
+                
+                // Clear document list
+                uploadedDocuments = [];
+                updateDocumentList();
             } catch (error) {
                 console.warn('Could not load document list:', error);
             }

@@ -593,9 +593,15 @@ class SmartSearchRouter:
 async def test_search_integration():
     """Test the complete search integration"""
 
-    # API keys (use environment variables in production)
-    BRAVE_API_KEY = "your_brave_api_key_here"
-    SCRAPINGBEE_API_KEY = "your_scrapingbee_api_key_here"
+    # API keys from environment variables
+    import os
+    BRAVE_API_KEY = os.getenv("BRAVE_API_KEY")
+    SCRAPINGBEE_API_KEY = os.getenv("SCRAPINGBEE_API_KEY")
+    
+    if not BRAVE_API_KEY or not SCRAPINGBEE_API_KEY:
+        print("⚠️  WARNING: API keys not found in environment variables")
+        print("   Set BRAVE_API_KEY and SCRAPINGBEE_API_KEY environment variables")
+        return
 
     async with SmartSearchRouter(BRAVE_API_KEY, SCRAPINGBEE_API_KEY) as router:
         # Test different budget scenarios

@@ -146,8 +146,8 @@ class ModelManager:
         self._selection_cache: Dict[str, tuple] = {}  # (model_name, cache_time)
         self._cache_ttl = 60  # Cache for 60 seconds
         
-        # Threading for background operations
-        self._background_lock = threading.Lock()
+        # Async lock for background operations
+        self._background_lock = asyncio.Lock()
         
         logger.info(f"ModelManager initialized with Ollama host: {ollama_host}")
 
@@ -185,6 +185,10 @@ class ModelManager:
                         logger.warning(f"⚠️ Ollama health check failed (attempt {attempt + 1})")
                 except asyncio.TimeoutError:
                     logger.warning(f"⏱️ Ollama health check timeout (attempt {attempt + 1})")
+                except ConnectionError as e:
+                    logger.warning(f"🔌 Ollama connection error (attempt {attempt + 1}): {e}")
+                except ValueError as e:
+                    logger.warning(f"📊 Ollama configuration error (attempt {attempt + 1}): {e}")
                 except Exception as e:
                     logger.warning(f"❌ Ollama health check error (attempt {attempt + 1}): {e}")
                 
@@ -202,6 +206,12 @@ class ModelManager:
                 logger.error(f"❌ Ollama connection failed during model discovery: {e}")
                 self.initialization_status = "degraded"
                 # Continue with empty model list for graceful degradation
+            except asyncio.TimeoutError:
+                logger.error("⏱️ Model discovery timeout - Ollama service may be overloaded")
+                self.initialization_status = "degraded"
+            except ConnectionError as e:
+                logger.error(f"🔌 Network connection failed during model discovery: {e}")
+                self.initialization_status = "degraded"
             except Exception as e:
                 logger.error(f"❌ Failed to discover models: {e}")
                 self.initialization_status = "degraded"
@@ -211,6 +221,10 @@ class ModelManager:
                 if not hasattr(self, 'memory_manager') or not self.memory_manager:
                     self.memory_manager = A5000MemoryManager()
                     logger.info("🧠 Memory manager initialized")
+            except ImportError as e:
+                logger.warning(f"📦 Memory manager module not available: {e}")
+            except RuntimeError as e:
+                logger.warning(f"⚙️ Memory manager runtime error: {e}")
             except Exception as e:
                 logger.warning(f"⚠️ Memory manager initialization failed: {e}")
             
@@ -222,6 +236,16 @@ class ModelManager:
             logger.info(f"✅ ModelManager initialization completed in {duration:.2f}s (status: {self.initialization_status})")
             return True
             
+        except KeyboardInterrupt:
+            logger.warning("⏹️ ModelManager initialization interrupted by user")
+            self.initialization_status = "interrupted"
+            self.is_initialized = False
+            return False
+        except MemoryError:
+            logger.error("💾 Insufficient memory for ModelManager initialization")
+            self.initialization_status = "memory_error"
+            self.is_initialized = False
+            return False
         except Exception as e:
             logger.error(f"❌ ModelManager initialization failed: {e}")
             self.initialization_status = "failed"
@@ -250,6 +274,12 @@ class ModelManager:
                             if any(model_name.startswith(tm.split(':')[0]) for tm in tier_models):
                                 tier = tier_name
                                 break
+                    except KeyError as e:
+                        logger.warning(f"Configuration key missing for {model_name}: {e}")
+                        tier = "T2"  # Fallback
+                    except AttributeError as e:
+                        logger.warning(f"Tier configuration structure error for {model_name}: {e}")
+                        tier = "T2"  # Fallback
                     except Exception as tier_error:
                         logger.warning(f"Tier assignment failed for {model_name}: {tier_error}")
                         tier = "T2"  # Fallback
@@ -266,8 +296,17 @@ class ModelManager:
                     
             logger.info(f"Model discovery completed: {len(self.models)} models cataloged")
             
+        except asyncio.TimeoutError:
+            logger.error("⏱️ Model discovery timeout - Ollama service unresponsive")
+            raise
+        except ConnectionError as e:
+            logger.error(f"🔌 Network connection failed during model discovery: {e}")
+            raise
+        except ValueError as e:
+            logger.error(f"📊 Invalid model data format: {e}")
+            raise
         except Exception as e:
-            logger.error(f"Model discovery failed: {e}")
+            logger.error(f"❌ Model discovery failed: {e}")
             raise
 
     def select_optimal_model(
@@ -477,8 +516,20 @@ class ModelManager:
                 logger.info(f"Model {model_name} loaded successfully")
                 return True
                 
+            except asyncio.TimeoutError:
+                logger.error(f"⏱️ Model loading timeout for {model_name}")
+                model_info.status = ModelStatus.ERROR
+                return False
+            except MemoryError:
+                logger.error(f"💾 Insufficient memory to load model {model_name}")
+                model_info.status = ModelStatus.ERROR
+                return False
+            except ConnectionError as e:
+                logger.error(f"🔌 Connection error loading model {model_name}: {e}")
+                model_info.status = ModelStatus.ERROR
+                return False
             except Exception as e:
-                logger.error(f"Failed to load model {model_name}: {e}")
+                logger.error(f"❌ Failed to load model {model_name}: {e}")
                 model_info.status = ModelStatus.ERROR
                 return False
 
@@ -489,8 +540,12 @@ class ModelManager:
         if self.ollama_client:
             try:
                 await self.ollama_client.close()
+            except ConnectionError as e:
+                logger.warning(f"🔌 Connection error closing Ollama client: {e}")
+            except asyncio.TimeoutError:
+                logger.warning("⏱️ Timeout closing Ollama client")
             except Exception as e:
-                logger.warning(f"Error closing Ollama client: {e}")
+                logger.warning(f"❌ Error closing Ollama client: {e}")
         
         self.is_initialized = False
         logger.info("✅ ModelManager shutdown completed")

@@ -5,6 +5,9 @@ FROM nvidia/cuda:12.1.1-runtime-ubuntu22.04
 # Prevent interactive prompts
 ENV DEBIAN_FRONTEND=noninteractive
 
+# Create non-root user for security
+RUN groupadd -r appuser && useradd -r -g appuser appuser
+
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -17,8 +20,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     OLLAMA_MODELS=/root/.ollama/models \
     REDIS_URL=redis://localhost:6379
 
-# Set working directory
+# Set working directory with proper ownership
 WORKDIR /app
+RUN chown -R appuser:appuser /app
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -104,9 +108,16 @@ RUN echo "=== Verifying supervisor config ===" && \
 # Expose ports (removed SSH port 22 for security)
 EXPOSE 8000 11434 6379
 
+# Create necessary directories with proper permissions
+RUN mkdir -p /var/log/supervisor /var/run/supervisor /app/logs && \
+    chown -R appuser:appuser /var/log/supervisor /var/run/supervisor /app/logs
+
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD curl -f http://localhost:8000/health/live || exit 1
+
+# Switch to non-root user for security
+USER appuser
 
 # Start services
 ENTRYPOINT ["/app/start-app.sh"]

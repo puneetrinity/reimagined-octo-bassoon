@@ -44,7 +44,10 @@ from app.schemas.responses import (
 
 router = APIRouter()
 logger = get_logger("api.chat")
-settings = None  # Fix: define or remove get_settings
+
+# Get settings properly
+from app.core.config import get_settings
+settings = get_settings()
 
 
 # Global instances (will be initialized in main.py)
@@ -258,7 +261,7 @@ async def chat_complete(
         chat_result = await safe_graph_execute(
             chat_graph_instance, graph_state, timeout=chat_request.max_execution_time
         )
-        chat_result = await ensure_awaited(chat_result)
+        # Note: safe_graph_execute already ensures proper awaiting
         
         # DEBUG: Log the raw result
         logger.info(f"DEBUG: Raw chat_result type: {type(chat_result)}")
@@ -425,7 +428,7 @@ async def chat_complete(
             if hasattr(chat_result, "calculate_total_cost"):
                 cost_calc = chat_result.calculate_total_cost()
                 total_cost = (
-                    await ensure_awaited(cost_calc)
+                    cost_calc  # Already awaited in the calculation above
                     if asyncio.iscoroutine(cost_calc)
                     else cost_calc
                 )
@@ -497,6 +500,74 @@ async def chat_complete(
         return response
     except HTTPException:
         raise
+    except asyncio.TimeoutError:
+        execution_time = time.time() - start_time
+        logger.error(
+            "Chat completion timeout",
+            query_id=query_id,
+            execution_time=execution_time,
+            correlation_id=correlation_id,
+        )
+        raise HTTPException(
+            status_code=408,
+            detail=create_error_response(
+                message="Request timeout",
+                error_code="CHAT_TIMEOUT_ERROR",
+                query_id=query_id,
+                correlation_id=correlation_id,
+                technical_details="Request exceeded time limit",
+                suggestions=[
+                    "Try a shorter or simpler question",
+                    "Try again in a moment",
+                ],
+            ).model_dump(),
+        )
+    except ValueError as e:
+        execution_time = time.time() - start_time
+        logger.error(
+            "Chat validation error",
+            query_id=query_id,
+            error=str(e),
+            execution_time=execution_time,
+            correlation_id=correlation_id,
+        )
+        raise HTTPException(
+            status_code=400,
+            detail=create_error_response(
+                message="Invalid request parameters",
+                error_code="CHAT_VALIDATION_ERROR",
+                query_id=query_id,
+                correlation_id=correlation_id,
+                technical_details=str(e),
+                suggestions=[
+                    "Check your input parameters",
+                    "Ensure message is not empty",
+                ],
+            ).model_dump(),
+        )
+    except ConnectionError as e:
+        execution_time = time.time() - start_time
+        logger.error(
+            "Chat service connection error",
+            query_id=query_id,
+            error=str(e),
+            execution_time=execution_time,
+            correlation_id=correlation_id,
+        )
+        raise HTTPException(
+            status_code=503,
+            detail=create_error_response(
+                message="Service temporarily unavailable",
+                error_code="CHAT_SERVICE_ERROR",
+                query_id=query_id,
+                correlation_id=correlation_id,
+                technical_details="Unable to connect to chat service",
+                suggestions=[
+                    "Try again in a few moments",
+                    "Check service status",
+                ],
+            ).model_dump(),
+        )
     except Exception as e:
         execution_time = time.time() - start_time
         logger.error(
@@ -689,7 +760,7 @@ async def chat_stream(
             chat_result = await safe_graph_execute(
                 chat_graph, graph_state, timeout=30.0
             )
-            chat_result = await ensure_awaited(chat_result)
+            # chat_result is already properly awaited from safe_graph_execute
             
             if chat_result and hasattr(chat_result, 'final_response') and chat_result.final_response:
                 response_text = chat_result.final_response
