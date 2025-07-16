@@ -1101,8 +1101,12 @@ if settings.environment != "production":
             }
 
 
-# Static files (if needed)
-app.mount("/static", StaticFiles(directory="static"), name="static")
+# Static files (if needed) - with error handling for missing directory
+import os
+if os.path.exists("static"):
+    app.mount("/static", StaticFiles(directory="static"), name="static")
+else:
+    logger.warning("Static directory not found, skipping static file mounting")
 
 
 def create_app() -> FastAPI:
